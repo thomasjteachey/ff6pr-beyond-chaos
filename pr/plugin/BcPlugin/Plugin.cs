@@ -112,6 +112,7 @@ namespace BeyondChaos.PR
             Defer("events", () => BcEvents.Patch(harmony));        // bc-events: BC's light events (SysCall "BC:...", shadowstays...)
             Defer("art", () => BcSprites.Patch(harmony));          // bc-sprites: the kit's ArtSwap serves the seed's sprites/
             Defer("music", () => BcMusic.Patch(harmony));          // bc-music: BC's songs in place of the game's tracks (BcMusic.cs)
+            Defer("doors", () => BcEntrances.Patch(harmony));      // strangejourney: the doors both worlds share, by world (BcEntrances.cs)
             Defer("harness", BcHarness.Register);
             var (py, script, err) = BcSeeds.Gen.Resolve();
             L.LogInfo($"Beyond Chaos {FlagDefs.Version}: {FlagDefs.Flags.Count} flags, {FlagDefs.Modes.Count} modes, {FlagDefs.Presets.Count} presets; generator: " +

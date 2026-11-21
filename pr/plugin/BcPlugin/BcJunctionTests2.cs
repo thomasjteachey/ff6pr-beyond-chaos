@@ -20,6 +20,9 @@ namespace BeyondChaos.PR
         static bool Fired(Calc c, string key) => c.Fired.Any(f => f.StartsWith(key));
         static string Tags(Calc c) => string.Join(" ", c.Fired);
 
+        // the same fighter (the game hands out a new wrapper per lookup: compare the native objects)
+        static bool Same(BattleUnitData a, BattleUnitData b) => a != null && b != null && a.Pointer == b.Pointer;
+
         static void Cast(BattleUnitData who, BattleUnitData at, int ability, int cmd = MagicCmd) =>
             BcJunctionTriggers.Cast(who, at, ability, true, "test", cmd, counter: false);
 
@@ -57,7 +60,7 @@ namespace BeyondChaos.PR
                 var c = cs[0];
                 bool ok = Fired(c, "boost_fire") && Fired(c, "fire_font") && Fired(c, "fire_sink") && Math.Abs(c.Factor - 1.40625) < 0.01;
                 return (ok ? "ok: " : "FAILED: ") + $"{Tags(c)}; factor {c.Factor:0.###}; {c.Value} -> {c.ValueAfter}";
-            }, c => c.Attacker == P(0));
+            }, c => Same(c.Attacker, P(0)) && c.Ability?.Id == Fire);   // not party member 0's auto-battle MagiTek
             // Physical Boost and Loner (x1/2 per missing ally below 5)
             Calcs("physical", 1, b =>
             {
@@ -70,7 +73,7 @@ namespace BeyondChaos.PR
                 double want = 1.5 * 0.5 * Math.Max(0, 5 - side);
                 bool ok = Fired(c, "boost_phys") && Fired(c, "loner") && Math.Abs(c.Factor - want) < 0.01;
                 return (ok ? "ok: " : "FAILED: ") + $"{Tags(c)}; factor {c.Factor:0.###} (want {want}, {side} standing); {c.Value} -> {c.ValueAfter}";
-            }, c => c.Attacker == P(0));
+            }, c => Same(c.Attacker, P(0)) && c.Command == AttackCmd);
             // Fire Pierce against a monster made to absorb Fire for the test: a hit, not a heal
             Calcs("pierce", 1, b =>
             {
@@ -84,11 +87,11 @@ namespace BeyondChaos.PR
                 LivingEnemy()?.BattleUnitDataInfo?.BattleTempParameter?.RemoveTempAttribute(1);
                 bool ok = c.Hit == HitType.Hit || c.Hit == HitType.Critical;
                 return (ok ? "ok: " : "FAILED: ") + $"Fire on an absorber with Fire Pierce: {c.Hit} {c.Value} ({Tags(c)})";
-            }, c => c.Attacker == P(0));
+            }, c => Same(c.Attacker, P(0)) && c.Ability?.Id == Fire);
             // Reverse: a Cure from the holder hurts
             Add("reverse", b => { Ready(); BcJunction.Grant(P(0), "reverse"); SetHp(P(1), 5000); Cast(P(0), P(1), Cure); }, b =>
             {
-                var l = Since(b, P(0)).FirstOrDefault();
+                var l = Mine(b, P(0), Cure).FirstOrDefault();
                 if (l == null) return null;
                 var t = On(l, P(1));
                 return t != null && t.HpAfter < t.HpBefore ? $"ok: Cure hurt: HP {t.HpBefore} -> {t.HpAfter}" : $"FAILED: HP {t?.HpBefore} -> {t?.HpAfter}";
@@ -96,7 +99,7 @@ namespace BeyondChaos.PR
             // Astral: a strike hits MP, not HP
             Add("astral", b => { Ready(); var e = LivingEnemy(); SetMp(e, 500); BcJunction.Grant(P(0), "astral"); Act(P(0), e, AttackAbility(), AttackCmd); }, b =>
             {
-                var l = Since(b, P(0)).FirstOrDefault();
+                var l = Mine(b, P(0), AttackAbility()).FirstOrDefault();
                 if (l == null) return null;
                 var t = l.Units.FirstOrDefault(x => x.Targeted);
                 return t != null && t.HpAfter == t.HpBefore && t.MpAfter < t.MpBefore
@@ -105,7 +108,7 @@ namespace BeyondChaos.PR
             // MP Switch: of 8 monster strikes at the holder, some hit MP instead (50%)
             Add("mp_switch", b => { Ready(); BcJunction.Grant(P(1), "mp_switch"); for (int i = 0; i < 8; i++) Act(LivingEnemy(), P(1), AttackAbility(), AttackCmd); }, b =>
             {
-                var ls = Since(b, LivingEnemy());
+                var ls = Mine(b, LivingEnemy(), AttackAbility());
                 if (ls.Count < 8) return null;
                 var on = ls.Select(l => On(l, P(1))).Where(x => x != null && x.Targeted).ToList();
                 int mp = on.Count(x => x.MpAfter < x.MpBefore && x.HpAfter == x.HpBefore);
@@ -120,7 +123,7 @@ namespace BeyondChaos.PR
                 for (int i = 0; i < 3; i++) Act(LivingEnemy(), P(2), AttackAbility(), AttackCmd);
             }, b =>
             {
-                var ls = Since(b, LivingEnemy());
+                var ls = Mine(b, LivingEnemy(), AttackAbility());
                 if (ls.Count < 3) return null;
                 var on = ls.Select(l => On(l, P(2))).Where(x => x != null && x.Targeted).ToList();
                 BattlePlugManager.Instance()?.BattleConditionController?.InterruptRemoveCondition(P(2), ConditionType.Sleep);
@@ -145,18 +148,18 @@ namespace BeyondChaos.PR
             // Counter All: of 8 monster strikes, some answered with an Attack (25%)
             Add("counter_all", b => { Ready(); BcJunction.Grant(P(0), "counter_all"); for (int i = 0; i < 8; i++) Act(LivingEnemy(), P(0), AttackAbility(), AttackCmd); }, b =>
             {
-                var ls = Since(b, LivingEnemy());
+                var ls = Mine(b, LivingEnemy(), AttackAbility());
                 if (ls.Count < 8 || Now - b < 12) return null;
-                int counters = Since(b, P(0)).Count;
+                int counters = Since(b, P(0)).Count(l => l.Act.Counter);   // not its auto-battle acts
                 return counters >= 1 ? $"ok: {counters} counterattacks to 8 strikes (25% expected)" : "FAILED: no counterattack to 8 strikes";
             });
             // Hamedo: half the strikes miss and are answered
             Add("hamedo", b => { Ready(); BcJunction.Grant(P(1), "hamedo"); for (int i = 0; i < 8; i++) Act(LivingEnemy(), P(1), AttackAbility(), AttackCmd); }, b =>
             {
-                var ls = Since(b, LivingEnemy());
+                var ls = Mine(b, LivingEnemy(), AttackAbility());
                 if (ls.Count < 8 || Now - b < 12) return null;
                 var on = ls.Select(l => On(l, P(1))).Where(x => x != null && x.Targeted).ToList();
-                int missed = on.Count(x => x.Damage == 0), counters = Since(b, P(1)).Count;
+                int missed = on.Count(x => x.Damage == 0), counters = Since(b, P(1)).Count(l => l.Act.Counter);
                 return missed >= 1 && counters >= 1 ? $"ok: {missed} of {on.Count} missed, {counters} counters" : $"FAILED: {missed} missed, {counters} counters";
             });
             // Return Magic: a monster's Fire at the holder comes back
@@ -169,16 +172,15 @@ namespace BeyondChaos.PR
             // Vampire: the attacker gets back what it dealt
             Add("vampire", b => { Ready(); BcJunction.Grant(P(0), "vampire"); SetHp(P(0), 1000); Act(P(0), LivingEnemy(), AttackAbility(), AttackCmd); }, b =>
             {
-                var l = Since(b, P(0)).FirstOrDefault();
+                var l = Mine(b, P(0), AttackAbility()).FirstOrDefault();
                 if (l == null) return null;
-                var me = On(l, P(0));
                 int dealt = l.Units.Where(x => x.Targeted).Sum(x => x.Damage);
                 return Hp(P(0)) > 1000 ? $"ok: dealt {dealt}, HP 1000 -> {Hp(P(0))}" : $"FAILED: dealt {dealt}, HP {Hp(P(0))}";
             });
             // Gilgam Heart: gil for the HP lost
             Add("gilgam_heart", b => { Ready(); BcJunction.Grant(P(0), "gilgam_heart"); Act(LivingEnemy(), P(0), AttackAbility(), AttackCmd); gil = Gil(); }, b =>
             {
-                var l = Since(b, LivingEnemy()).FirstOrDefault();
+                var l = Mine(b, LivingEnemy(), AttackAbility()).FirstOrDefault();
                 if (l == null) return null;
                 var t = On(l, P(0));
                 int got = Gil() - gil;
@@ -195,7 +197,7 @@ namespace BeyondChaos.PR
                 Act(P(0), e, AttackAbility(), AttackCmd);
             }, b =>
             {
-                var l = Since(b, P(0)).FirstOrDefault();
+                var l = Mine(b, P(0), AttackAbility()).FirstOrDefault();
                 if (l == null) return null;
                 var t = l.Units.FirstOrDefault(x => x.Targeted);
                 var p = t?.Unit.BattleUnitDataInfo?.Parameter;
@@ -231,13 +233,13 @@ namespace BeyondChaos.PR
             // Flinch: the attacker's strikes cut a monster's gauge to a quarter (50% each; 6 strikes)
             Add("flinch", b => { Ready(); BcJunction.Grant(P(0), "flinch"); for (int i = 0; i < 6; i++) Act(P(0), LivingEnemy(), AttackAbility(), AttackCmd); }, b =>
             {
-                if (Since(b, P(0)).Count < 6) return null;
+                if (Mine(b, P(0), AttackAbility()).Count < 6) return null;
                 return BcJunctionTriggers.Flinches > 0 ? $"ok: {BcJunctionTriggers.Flinches} flinches in 6 strikes" : "FAILED: no flinch in 6 strikes";
             });
             // Discordant: the target's level ends in the attacker's HP's last digit
             Add("discordant", b => { Ready(); SetHp(P(0), 4567); BcJunction.Grant(P(0), "discordant"); Act(P(0), LivingEnemy(), AttackAbility(), AttackCmd); }, b =>
             {
-                var l = Since(b, P(0)).FirstOrDefault();
+                var l = Mine(b, P(0), AttackAbility()).FirstOrDefault();
                 if (l == null) return null;
                 var t = l.Act.Targets.FirstOrDefault();
                 int lv = BcJunctionStats.Level(t), raw = BcJunctionStats.RawLevel(t), hpDigit = (l.Units.FirstOrDefault(x => x.Unit.Pointer == P(0).Pointer)?.HpBefore ?? 4567) % 10;
@@ -284,7 +286,7 @@ namespace BeyondChaos.PR
             // Overheal: a Cure on an ally near max raises its HP past max
             Add("overheal", b => { Ready(); BcJunction.Grant(P(0), "overheal"); SetHp(P(1), Math.Max(1, MaxHp(P(1)) - 5)); Cast(P(0), P(1), Cure); }, b =>
             {
-                var l = Since(b, P(0)).FirstOrDefault();
+                var l = Mine(b, P(0), Cure).FirstOrDefault();
                 if (l == null) return null;
                 var t = On(l, P(1));
                 int hp = Hp(P(1)), max = MaxHp(P(1));

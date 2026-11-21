@@ -202,4 +202,29 @@ def apply(out, rom, vanilla, flags, log=print):
             info["auction_items"] = sales
             auction_lines(out, sales)
             log(f"bc_data: auction sales {sales}")
+    moved = natural_moved(out)
+    if moved:
+        info["natural_moved"] = moved
+        log(f"bc_data: natural magic changed for jobs {moved}")
     return info
+
+
+def natural_moved(out):
+    """The jobs (= the PR's character status ids 1-14) whose natural magic (learning type-1 rows: spell, level) the
+    seed changed (BC moves or rerolls the lists): the plugin's BcSkills un-learns the PR's built-in spells a changed
+    character no longer gets (Terra's Cure/Fire, Celes's Blizzard: kit SnesNaturalMagic) and teaches what its new
+    list gives by its level."""
+    path = os.path.join(out, *seed_live.MASTER_PATH.split("/"), "learning.csv")
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8", newline="") as f:
+        seed = P.Table("learning", f.read())
+
+    def rows(table):
+        by = {}
+        for r in table.rows.values():
+            if r["type_id"] == "1":
+                by.setdefault(int(r["job_id"]), set()).add((r["content_id"], r["value1"]))
+        return by
+    van, new = rows(P.Table("learning")), rows(seed)
+    return sorted(j for j in set(van) | set(new) if 1 <= j <= 14 and van.get(j, set()) != new.get(j, set()))

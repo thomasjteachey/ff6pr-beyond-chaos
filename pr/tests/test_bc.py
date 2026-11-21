@@ -6,7 +6,8 @@
     in-game screen makes (plugin/Bc.Tests writes them: bc_flags_cases.tsv) is read by BC's own parser
     as the screen meant it
   * the generator: BC's source (tools/bc_run.py) makes BC's exe's ROM for the same seed (needs the
-    vanilla ROM and the exe's ROM in build/beyond-chaos; ~20 s), and a seed folder (tools/bc_seed.py)
+    vanilla ROM and the exe's ROM in build/beyond-chaos; ~29 s, skipped while everything it reads is as it was
+    when it last passed: pr/cache/test_bc_parity.json, BC_PARITY_FULL=1 runs it), and a seed folder (tools/bc_seed.py)
     holds full tables, its files in the managed list and its json (BC_SEED_TEST=1: ~25 s)
 The porter's own checks run on a BC seed with tools/bc_seed.py --keep-port, then
 PR_MOD=BCSeed tests/test_mod.py.
@@ -104,7 +105,57 @@ class BcFlags(unittest.TestCase):
 @unittest.skipUnless(EXE_ROMS and os.path.exists(os.path.join(PROJECT, "rom", "vanilla", "Final Fantasy III (USA).sfc")),
                      "needs the vanilla ROM and a ROM made by BC's exe")
 class BcParity(unittest.TestCase):
+    # ~29 s, and its inputs rarely change (the pre-flight reruns test_bc on any tools/ or data/ edit): a pass is
+    # remembered with a fingerprint of everything the run reads, and the same inputs again skip it.
+    # BC_PARITY_FULL=1 always runs it.
+    CACHE = os.path.join(PR, "cache", "test_bc_parity.json")
+
+    @staticmethod
+    def inputs_fp():
+        """What the run reads: bc_run and the porter modules it calls (by content), BC's source and its release
+        files (custom/, remonsterate/, tables/, Config.ini; by size and time), both ROMs and the spoiler log."""
+        import hashlib
+        import prdata as P
+        import ff6snes as S
+        h = hashlib.sha1(sys.version.encode())
+        tools = os.path.dirname(os.path.abspath(bc_run.__file__))
+        for f in (bc_run.__file__, os.path.join(tools, "bc_remon.py"), S.__file__, P.__file__):
+            if os.path.isfile(f):
+                h.update(f.encode() + open(f, "rb").read())
+        rom = EXE_ROMS[0]
+        for p in (P.VANILLA_ROM, rom, os.path.splitext(rom)[0] + ".txt", os.path.join(bc_run.HOME, "Config.ini")):
+            st = os.stat(p) if os.path.exists(p) else None
+            h.update(f"{os.path.basename(p)}|{st and st.st_size}|{st and st.st_mtime_ns}\n".encode())
+
+        def tree(d, rel):   # scandir: Windows hands back each file's size and time with the listing (~17,000 files)
+            try:
+                entries = sorted(os.scandir(d), key=lambda e: e.name)
+            except OSError:
+                h.update(f"{rel}|missing\n".encode())
+                return
+            for e in entries:
+                if e.name.startswith(".") or e.name == "__pycache__" or e.name.endswith(".pyc"):
+                    continue
+                if e.is_dir():
+                    tree(e.path, f"{rel}/{e.name}")
+                else:
+                    st = e.stat(follow_symlinks=False)
+                    h.update(f"{rel}/{e.name}|{st.st_size}|{st.st_mtime_ns}\n".encode())
+
+        tree(bc_run.SRC, "src")
+        for d in ("custom", "remonsterate", "tables"):
+            tree(os.path.join(bc_run.HOME, d), d)
+        return h.hexdigest()
+
     def test_source_makes_the_exes_rom(self):
+        full = os.environ.get("BC_PARITY_FULL") == "1"
+        try:
+            with open(self.CACHE, encoding="utf-8") as f:
+                last = json.load(f)
+        except (OSError, ValueError):
+            last = {}
+        if not full and last.get("fp") == self.inputs_fp():
+            self.skipTest(f"same inputs as the run that passed at {last.get('when')} (BC_PARITY_FULL=1 runs it)")
         # the exe's spoiler log names its seed string on the first line
         rom_path = EXE_ROMS[0]
         first = open(os.path.splitext(rom_path)[0] + ".txt", encoding="utf-8", errors="replace").readline()
@@ -116,6 +167,13 @@ class BcParity(unittest.TestCase):
         self.assertEqual(len(data), len(exe))
         diff = sum(1 for a, b in zip(data, exe) if a != b)
         self.assertEqual(diff, 0, f"{diff} bytes differ from the exe's ROM")
+        # passed: remember the inputs as they are now (after the run: anything it wrote is in the fingerprint)
+        import time
+        os.makedirs(os.path.dirname(self.CACHE), exist_ok=True)
+        tmp = f"{self.CACHE}.{os.getpid()}.tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"fp": self.inputs_fp(), "when": time.strftime("%Y-%m-%d %H:%M")}, f)
+        os.replace(tmp, self.CACHE)
 
 
 class BcGuideInGame(unittest.TestCase):
@@ -226,7 +284,7 @@ class BcDataSteps(unittest.TestCase):
     def setUp(self):
         import bc_data
         import seed_live
-        self.D = bc_data
+        self.D, self.L = bc_data, seed_live
         self.out = tempfile.mkdtemp()
         self.msg = os.path.join(self.out, *seed_live.MESSAGE_PATH.split("/"))
         os.makedirs(self.msg)
@@ -254,6 +312,18 @@ class BcDataSteps(unittest.TestCase):
     def test_auctioneer_names_the_seeds_items(self):
         self.D.auction_lines(self.out, {"287": 288})
         self.assertEqual(self.read("story_mes_en.txt")[self.D.AUCTION_LINES[287]], "...a fine Angel Ring!")
+
+    def test_natural_moved_names_the_changed_characters(self):
+        import prdata as P
+        t = P.Table("learning")
+        terra = next(r for r in t.rows.values() if r["type_id"] == "1" and r["job_id"] == "1")
+        terra["job_id"] = "7"                                       # one of Terra's spells moved to Celes
+        path = os.path.join(self.out, *self.L.MASTER_PATH.split("/"), "learning.csv")
+        os.makedirs(os.path.dirname(path))
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(t.to_csv(t.rows.keys()))
+        self.assertEqual(self.D.natural_moved(self.out), [1, 7])
+        self.assertEqual(self.D.natural_moved(tempfile.mkdtemp()), [])   # no learning table: nothing moved
 
     def test_coral_name_title_cases_capitals(self):
         import ff6snes as S
@@ -355,6 +425,87 @@ class BcGifts(unittest.TestCase):
         self.assertEqual(story["E0400_00_398_a_02"], "<CT>Obtained Ifrit magicite!")
         self.assertTrue(self.lines()[self.G.name_key(self.G.SWORD)].endswith("Raiden"))
         self.assertEqual(G.espers(self.out, bytes(rom), bytes(van), "t", log=lambda m: None), ([], {}))   # no y
+
+
+class BcBingo(unittest.TestCase):
+    """bingoboingo (audit gap #2): BC's run with the exe's bingo defaults (bc_run.BINGO) makes its card instead of
+    crashing on `size ** 2` with None, and bc_run hands the card over (capture["bingo"]), leaving no file behind."""
+
+    def test_bingoboingo_makes_a_card(self):
+        import ff6snes as S
+        import prdata as P
+        import bc_trace
+        if not os.path.exists(P.VANILLA_ROM):
+            self.skipTest("no ROM on this PC")
+        capture = {}
+        data, log = bc_run.run(S.rom_bytes(P.VANILLA_ROM), "9859608359", "normal",
+                               bc_trace.preset_flags("New Player") + " bingoboingo", say=lambda m: None, capture=capture)
+        self.assertTrue(data)
+        cards = capture.get("bingo") or []
+        self.assertEqual(len(cards), 1)
+        self.assertIn("Beyond Chaos Bingo Card", cards[0])
+        self.assertEqual([n for n in os.listdir(os.path.abspath(bc_run.HOME)) if n.startswith("bingo.")], [])
+
+
+class BcPlayerTestInBatch(unittest.TestCase):
+    """tools/bc_playertest.py inside a test batch: the batch's own BC test install (bc_testinstall) is restored before
+    the player install and put back after it, on a fake game folder (the real game is the test runner's)."""
+
+    def setUp(self):
+        import types
+        import zipfile
+        import bc_testinstall as T
+        import bc_playertest as PT
+        self.T, self.PT = T, PT
+        self.tmp = tempfile.mkdtemp()
+        root = self.tmp
+        game = types.SimpleNamespace(install=os.path.join(root, "game"), running=lambda: False)
+        game.bepinex = os.path.join(game.install, "BepInEx")
+        game.plugins_dir = os.path.join(game.bepinex, "plugins")
+        game.shelf_dir = os.path.join(game.bepinex, "mod-shelf")
+        game.magicite_dir = os.path.join(game.install, "Magicite")
+        os.makedirs(os.path.join(game.bepinex, "config"))
+        os.makedirs(os.path.join(game.plugins_dir, "WorldsCollide"))          # the mod the batch had active
+        build = os.path.join(root, "build")
+        for d in (os.path.join(build, "plugin", "baseline"), os.path.join(build, "magicite", T.MOD)):
+            os.makedirs(d)
+            open(os.path.join(d, "x.txt"), "w").close()
+        for f in ("dll", "flags"):
+            open(os.path.join(root, f), "w").close()
+        self.zip = os.path.join(root, "BeyondChaos-PR-test.zip")
+        with zipfile.ZipFile(self.zip, "w") as z:
+            z.writestr("BepInEx/plugins/BeyondChaos/BeyondChaos.PR.dll", b"player dll")
+            z.writestr("BepInEx/BeyondChaos/generator/bundle.json", "{}")
+        self.saved = (T.game, T.DLL, T.FLAGS, T.BUILD)
+        T.game = lambda: game
+        T.DLL, T.FLAGS, T.BUILD = os.path.join(root, "dll"), os.path.join(root, "flags"), build
+        self.g = game
+
+    def tearDown(self):
+        self.T.game, self.T.DLL, self.T.FLAGS, self.T.BUILD = self.saved
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_dev_install_restored_then_put_back(self):
+        T, PT, g = self.T, self.PT, self.g
+        state = os.path.join(g.bepinex, T.STATE)
+        T.install()                                            # the batch's earlier BC steps
+        self.assertTrue(os.path.exists(state))
+        PT.install(self.zip)                                    # used to stop here: "restore first"
+        self.assertTrue(os.path.exists(os.path.join(g.bepinex, T.MOD, "generator", "bundle.json")))
+        self.assertFalse(os.path.isdir(os.path.join(g.magicite_dir, T.MOD)))          # a player's: no Magicite folder
+        PT.restore()
+        self.assertTrue(os.path.exists(state))                  # the batch's install is back for its later steps
+        self.assertTrue(os.path.isdir(os.path.join(g.magicite_dir, T.MOD)))
+        self.assertFalse(os.path.exists(os.path.join(g.bepinex, T.MOD, "generator")))
+        T.restore()
+        self.assertTrue(os.path.isdir(os.path.join(g.plugins_dir, "WorldsCollide")))   # as the batch found it
+
+    def test_without_a_dev_install_restore_leaves_none(self):
+        T, PT, g = self.T, self.PT, self.g
+        PT.install(self.zip)
+        PT.restore()
+        self.assertFalse(os.path.exists(os.path.join(g.bepinex, T.STATE)))
+        self.assertTrue(os.path.isdir(os.path.join(g.plugins_dir, "WorldsCollide")))
 
 
 class BcRomFree(unittest.TestCase):

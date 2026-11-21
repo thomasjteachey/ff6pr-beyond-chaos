@@ -146,7 +146,7 @@
    "label": "Random palettes and names",
    "code": "c",
    "help": "Randomize palettes and names of various things.",
-   "port": "yes",
+   "port": "partly",
    "type": "bool"
   },
   "d": {
@@ -160,7 +160,7 @@
    "label": "Random espers",
    "code": "e",
    "help": "Randomize esper spells and levelup bonuses.",
-   "port": "yes",
+   "port": "partly",
    "type": "bool"
   },
   "f": {
@@ -181,7 +181,7 @@
    "label": "Random final party",
    "code": "h",
    "help": "Your party in the Final Kefka fight will be random.",
-   "port": "no",
+   "port": "yes",
    "type": "bool"
   },
   "i": {
@@ -195,7 +195,7 @@
    "label": "Random Phantom Forest",
    "code": "j",
    "help": "Randomize the phantom forest.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "strangejourney"
@@ -205,7 +205,7 @@
    "label": "Random Zozo clock",
    "code": "k",
    "help": "Randomize the clock in Zozo.",
-   "port": "no",
+   "port": "yes",
    "type": "bool"
   },
   "l": {
@@ -240,7 +240,7 @@
    "label": "Random animation palettes",
    "code": "p",
    "help": "The Pixel Remaster's spell and weapon effects are its own particle art, not palette sprites.  Randomize the palettes of spells and weapon animations.",
-   "port": "na",
+   "port": "no",
    "type": "bool"
   },
   "q": {
@@ -254,7 +254,7 @@
    "label": "Shuffle World of Ruin recruits",
    "code": "r",
    "help": "Randomize character locations in the world of ruin.",
-   "port": "no",
+   "port": "yes",
    "type": "bool"
   },
   "s": {
@@ -282,28 +282,28 @@
    "label": "Replace commands",
    "code": "w",
    "help": "Generate new commands for characters,replacing old commands.",
-   "port": "no",
+   "port": "yes",
    "type": "bool"
   },
   "y": {
    "label": "Shuffle magicite",
    "code": "y",
    "help": "Shuffle magicite locations.",
-   "port": "partly",
+   "port": "yes",
    "type": "bool"
   },
   "z": {
    "label": "Always dash",
    "code": "z",
    "help": "Always have \"Sprint Shoes\" effect.",
-   "port": "yes",
+   "port": "na",
    "type": "bool"
   },
   "bravenudeworld": {
    "label": "Everyone looks like Esper Terra",
    "code": "bravenudeworld",
    "help": "All characters use the Esper Terra sprite.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "kupokupo"
@@ -318,7 +318,7 @@
    "label": "Moogle party",
    "code": "kupokupo",
    "help": "All party members are moogles except Mog. With partyparty, all characters are moogles, except Mog, Esper Terra, and Imps.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "bravenudeworld"
@@ -350,7 +350,7 @@
    "label": "No original sprites",
    "code": "novanilla",
    "help": "Use with 'makeover' to have sprites from the vanilla game to be guaranteed not to appear.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "frenchvanilla"
@@ -365,7 +365,7 @@
    "label": "Original sprites as likely as new",
    "code": "frenchvanilla",
    "help": "Use with 'makeover' to have sprites from the vanilla game be selected with equal weight to new sprites.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "novanilla"
@@ -380,7 +380,7 @@
    "label": "Clone party",
    "code": "cloneparty",
    "help": "Use with 'makeover' to have the randomizer actively try to choose spriteversions of the same character.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "requires": [
     {
@@ -392,7 +392,7 @@
    "label": "Guest sprites in the mix",
    "code": "partyparty",
    "help": "Kefka, Trooper, Banon, Leo, Ghost, Merchant, Esper Terra, and Soldier are included in the pool of sprite randomization",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "requires": [
     {
@@ -404,7 +404,7 @@
    "label": "Imperial soldier party",
    "code": "quikdraw",
    "help": "All characters look like imperial soldiers, and none of them have Gau's Rage skill.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "bravenudeworld",
@@ -428,14 +428,14 @@
    "label": "Informative misses",
    "code": "informativemiss",
    "help": "Effects will display 'Miss', 'Null', or 'Fail' depending on why the effect failed to land.",
-   "port": "no",
+   "port": "yes",
    "type": "bool"
   },
   "magicnumbers": {
    "label": "Coloured MP numbers",
    "code": "magicnumbers",
    "help": "Changes MP damage and MP healing to display in a different color than HP damage and HP healing.",
-   "port": "no",
+   "port": "yes",
    "type": "bool"
   },
   "mpparty": {
@@ -468,7 +468,7 @@
    "label": "Doom Gaze finder",
    "code": "regionofdoom",
    "help": "Enables a dialog on the World of Ruin Airship to automatically find and fight Doom Gaze.",
-   "port": "no",
+   "port": "yes",
    "type": "bool"
   },
   "relicmyhat": {
@@ -485,7 +485,7 @@
    "label": "Remove flashing",
    "code": "removeflashing",
    "help": "Edits SNES animation scripts; the Pixel Remaster's effects are its own.  \"All\" removes most white flashing effects from the game. \"BumRush\" just removes the Bum Rush flashing.",
-   "port": "na",
+   "port": "no",
    "type": "str",
    "choices": [
     "vanilla",
@@ -498,7 +498,7 @@
    "label": "Slower scrolling backgrounds",
    "code": "slowerbg",
    "help": "An SNES display fix: the Pixel Remaster scrolls its backgrounds its own way.  Drastically reduces the speed of vertical scrolling backgrounds.",
-   "port": "na",
+   "port": "no",
    "type": "bool"
   },
   "tastetherainbow": {
@@ -512,7 +512,7 @@
    "label": "Random opera",
    "code": "alasdraco",
    "help": "Randomizes various aesthetic elements of the Opera.",
-   "port": "no",
+   "port": "partly",
    "type": "bool"
   },
   "bingoboingo": {
@@ -568,7 +568,7 @@
    "label": "Chaotic music",
    "code": "johnnyachaotic",
    "help": "Randomizes music with no regard to what would make sense in a given location.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "johnnydmad"
@@ -578,7 +578,7 @@
    "label": "New music",
    "code": "johnnydmad",
    "help": "Randomizes music with regard to what would make sense in a given location.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "johnnyachaotic"
@@ -588,7 +588,7 @@
    "label": "Cutscene skips",
    "code": "notawaiter",
    "help": "Up to Kefka at Narshe, the vast majority of mandatory cutscenes are completely removed. Optional cutscenes are not removed.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "ancientcave"
@@ -724,7 +724,7 @@
    "label": "Easy Fanatics' Tower",
    "code": "lessfanatical",
    "help": "Disables forced magic command in Fanatic's Tower.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "suplexwrecks"
@@ -792,7 +792,7 @@
    "label": "No randomness in battle",
    "code": "norng",
    "help": "Almost all calls to the RNG are removed, and actions are much less random as a result.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "requires": [
     {
@@ -804,7 +804,7 @@
    "label": "Autobattle",
    "code": "playsitself",
    "help": "All characters will act automatically, in a manner similar to when Coliseum fights are fought.",
-   "port": "no",
+   "port": "yes",
    "type": "bool"
   },
   "randombosses": {
@@ -823,7 +823,7 @@
    "label": "Old Vargas fight",
    "code": "rushforpower",
    "help": "Reverts the Vargas fight to only require that Vargas take any damage to begin his second phase.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "requires": [
     {
@@ -916,7 +916,7 @@
    "label": "Hidden Gogo",
    "code": "mimetime",
    "help": "Gogo will be hidden somewhere in the World of Ruin disguised as another character. Bring that character to him to recruit him.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "requires": [
     {
@@ -934,7 +934,7 @@
    "label": "Harder Fanatics' Tower",
    "code": "morefanatical",
    "help": "Later in this port (with the random final dungeon).  Fanatic's Tower is even more confusing than usual.",
-   "port": "later",
+   "port": "no",
    "type": "bool",
    "conflicts": [
     "ancientcave"
@@ -976,7 +976,7 @@
    "label": "Divergent paths",
    "code": "thescenarionottaken",
    "help": "Later in this port (Divergent paths).  Changes the way the 3 scenarios are split up, to resemble PowerPanda's 'Divergent Paths' mod.",
-   "port": "later",
+   "port": "no",
    "type": "bool",
    "conflicts": [
     "strangejourney",
@@ -987,7 +987,7 @@
    "label": "Start in the World of Ruin",
    "code": "worringtriad",
    "help": "The player will start in the World of Ruin, with all of the World of Balance treasure chests, along with a guaranteed set of items, and more Lores.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "thescenarionottaken",
@@ -998,7 +998,7 @@
    "label": "All combo skills",
    "code": "allcombos",
    "help": "All skills that get replaced with something are replaced with combo skills.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "nocombos",
@@ -1021,7 +1021,7 @@
    "label": "Desperation attacks",
    "code": "desperation",
    "help": "Guarantees one character will have R-Limit, and greatly increases the chance of having desperation attacks as commands.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "suplexwrecks"
@@ -1036,7 +1036,7 @@
    "label": "Endless nine (9x skills)",
    "code": "endless9",
    "help": "All R-[skills] are automatically changed to 9x[skills]. W-[skills] will become 8x[skills].",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "suplexwrecks"
@@ -1063,7 +1063,7 @@
    "label": "Cap type",
    "code": "cap_type",
    "help": "How should the level cap behave? Random: Roll one level cap, apply it to all characters. Chaos: Roll a different level cap for each character.",
-   "port": "no",
+   "port": "yes",
    "type": "str",
    "choices": [
     "random",
@@ -1075,7 +1075,7 @@
    "label": "Lowest cap",
    "code": "cap_min",
    "help": "The minimum value that characters can roll as their capped level.",
-   "port": "no",
+   "port": "yes",
    "type": "int",
    "min": 1,
    "max": 98,
@@ -1085,7 +1085,7 @@
    "label": "Highest cap",
    "code": "cap_max",
    "help": "The maximum value that characters can roll as their capped level.",
-   "port": "no",
+   "port": "yes",
    "type": "int",
    "min": 2,
    "max": 99,
@@ -1095,7 +1095,7 @@
    "label": "Innate relics",
    "code": "mementomori",
    "help": "Number of characters that begin with an innate relic ability.",
-   "port": "no",
+   "port": "partly",
    "type": "str",
    "choices": [
     "random",
@@ -1121,7 +1121,7 @@
    "label": "Random Chaos for everyone",
    "code": "metronome",
    "help": "All characters have Fight, R-Chaos, Magic, and Item as their skillset, except for the Mime, who has Mimic instead of Fight, and the Berserker, who only has R-Chaos.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "suplexwrecks"
@@ -1136,7 +1136,7 @@
    "label": "Natural magic only",
    "code": "naturalmagic",
    "help": "No Espers or equipment will teach spells. The only way for characters to learn spells is through leveling up, if they have their own innate magic list.",
-   "port": "partly",
+   "port": "yes",
    "type": "bool"
   },
   "naturalstats": {
@@ -1150,7 +1150,7 @@
    "label": "No combo skills",
    "code": "nocombos",
    "help": "There will be no combo(dual) skills.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "allcombos",
@@ -1181,7 +1181,7 @@
    "label": "Replace every skill",
    "code": "replaceeverything",
    "help": "All vanilla skills that can be replaced, are replaced.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "suplexwrecks"
@@ -1196,7 +1196,7 @@
    "label": "Shadow stays",
    "code": "shadowstays",
    "help": "Shadow no longer has a chance to leave the party in random battles",
-   "port": "no",
+   "port": "yes",
    "type": "bool"
   },
   "supernatural": {
@@ -1215,7 +1215,7 @@
    "label": "Suplex mode (everyone is Sabin)",
    "code": "suplexwrecks",
    "help": "All characters use the Sabin sprite, have a name similar to Sabin, have the Blitz and Suplex commands, and can hit every enemy with Suplex.",
-   "port": "no",
+   "port": "yes",
    "type": "bool",
    "conflicts": [
     "kupokupo",
@@ -1227,7 +1227,7 @@
    "label": "Airship from the start",
    "code": "airship",
    "help": "The player can access the airship after leaving Narshe, or from any chocobo stable. Doing events out of order can cause softlocks.",
-   "port": "no",
+   "port": "yes",
    "type": "bool"
   },
   "equipanything": {
@@ -1251,7 +1251,7 @@
    "label": "Bizarre adventure (entrances)",
    "code": "strangejourney",
    "help": "A prototype entrance randomizer, similar to the ancientcave mode. Includes all maps and event tiles, and is usually extremely hard to beat by itself.",
-   "port": "no",
+   "port": "partly",
    "type": "bool",
    "conflicts": [
     "thescenarionottaken",
@@ -1262,49 +1262,49 @@
    "label": "Summoner mode",
    "code": "espercutegf",
    "help": "Characters gain the traits of equipped espers. Casters can change equipped esper mid-battle.",
-   "port": "no",
+   "port": "partly",
    "type": "bool"
   },
   "espffect": {
    "label": "Junction effects on espers",
    "code": "espffect",
    "help": "Attach random effects from the \"Junction\" patch set to espers.",
-   "port": "no",
+   "port": "partly",
    "type": "bool"
   },
   "effectmas": {
    "label": "Junction effects on equipment",
    "code": "effectmas",
    "help": "Attach random effects from the \"Junction\" patch set to equipment (excluding relics). Low potential for softlocks.",
-   "port": "no",
+   "port": "partly",
    "type": "bool"
   },
   "effectory": {
    "label": "Junction effects on relics",
    "code": "effectory",
    "help": "Attach random effects from the \"Junction\" patch set to relics. Low potential for softlocks.",
-   "port": "no",
+   "port": "partly",
    "type": "bool"
   },
   "effectster": {
    "label": "Junction effects on monsters",
    "code": "effectster",
    "help": "Attach random effects from the \"Junction\" patch set to monsters, rages, and some statuses. Medium potential for softlocks.",
-   "port": "no",
+   "port": "partly",
    "type": "bool"
   },
   "treaffect": {
    "label": "Monsters' item junction effects",
    "code": "treaffect",
    "help": "Monsters inherit the \"Junction\" effects of held items. Medium potential for softlocks.",
-   "port": "no",
+   "port": "partly",
    "type": "bool"
   },
   "jejentojori": {
    "label": "Innate relic junctions",
    "code": "jejentojori",
    "help": "Innate \"mementomori\" relics retain their junction effects. High potential for softlocks.",
-   "port": "no",
+   "port": "partly",
    "type": "bool",
    "requires": [
     {
@@ -1316,7 +1316,7 @@
    "label": "Object sprites",
    "code": "object",
    "help": "Adjust probability of selecting object sprites.",
-   "port": "no",
+   "port": "yes",
    "type": "str",
    "choices": [
     "normal",
@@ -1336,7 +1336,7 @@
    "label": "Kid sprites",
    "code": "kids",
    "help": "Adjust probability of selecting kids sprites.",
-   "port": "no",
+   "port": "yes",
    "type": "str",
    "choices": [
     "normal",
@@ -1356,7 +1356,7 @@
    "label": "Girl sprites",
    "code": "girls",
    "help": "Adjust probability of selecting girls sprites.",
-   "port": "no",
+   "port": "yes",
    "type": "str",
    "choices": [
     "normal",
@@ -1376,7 +1376,7 @@
    "label": "Anime sprites",
    "code": "anime",
    "help": "Adjust probability of selecting anime sprites.",
-   "port": "no",
+   "port": "yes",
    "type": "str",
    "choices": [
     "normal",
@@ -1396,7 +1396,7 @@
    "label": "Boy sprites",
    "code": "boys",
    "help": "Adjust probability of selecting boys sprites.",
-   "port": "no",
+   "port": "yes",
    "type": "str",
    "choices": [
     "normal",
@@ -1416,7 +1416,7 @@
    "label": "Generic sprites",
    "code": "generic",
    "help": "Adjust probability of selecting generic sprites.",
-   "port": "no",
+   "port": "yes",
    "type": "str",
    "choices": [
     "normal",
@@ -1436,7 +1436,7 @@
    "label": "Animal sprites",
    "code": "animals",
    "help": "Adjust probability of selecting animals sprites.",
-   "port": "no",
+   "port": "yes",
    "type": "str",
    "choices": [
     "normal",
@@ -1817,7 +1817,7 @@
   },
   {
    "title": "Sprites",
-   "port": "partly",
+   "port": "yes",
    "rows": [
     {
      "kind": "flag",
@@ -1858,7 +1858,7 @@
   },
   {
    "title": "Sprite categories",
-   "port": "no",
+   "port": "yes",
    "rows": [
     {
      "kind": "flag",
@@ -1926,7 +1926,7 @@
   },
   {
    "title": "Experimental",
-   "port": "no",
+   "port": "partly",
    "rows": [
     {
      "kind": "flag",

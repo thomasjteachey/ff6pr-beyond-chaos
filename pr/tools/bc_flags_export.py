@@ -119,6 +119,11 @@ PORT = {
     # y (bc_gifts.espers): every esper gift, the lines naming them, the Phoenix Cave, the Ragnarok sword's name, the
     # bosses' names (porter); the esper bosses drawn as their replacements (BC copies the art): not yet
     "y": "partly",
+    # bc-events (2026-11-21), passed in game (QA bc-5 / bc-6): the World of Ruin start, the Zozo clock, Shadow
+    # stays, the final battle's random parties
+    "worringtriad": "yes", "k": "yes", "shadowstays": "yes", "h": "yes",
+    "strangejourney": "partly",     # 666/951 entrances rewired (bc_entrances), 55 per-world doors (BcEntrances); ~119 story-version doors keep their own
+    "alasdraco": "partly",         # the opera's text and name boxes (bc-events, bc-6), its music (bc-music); the singers' sprites: bc-sprites
 }
 
 # why a flag is "na" or "later": the first words of its help on the Beyond Chaos screen
@@ -155,6 +160,44 @@ def number(x):
     return float(x) if isinstance(x, float) else int(x)
 
 
+AUDIT = os.path.join(ROOT, "docs", "bc-audit.md")
+AUDIT_PORT = {"tested": "yes", "ported": "yes", "partial": "partly", "missing": "no", "n/a": "na"}
+
+
+def audit_ports(codes, path=AUDIT):
+    """The port status of each flag from the source audit's checklist (pr/docs/bc-audit.md sections (a) and (b): the
+    BC lead's, 2026-11-21): tested/ported -> yes, partial -> partly, missing -> no, n/a -> na, left out -> na only
+    when the audit says its reason holds (else no: the audit counts it missing). A row may name several codes
+    ("animals, anime, boys (7 rows, one each)"). {} without the audit (the public repo: PORT above then)."""
+    import re
+    if not os.path.exists(path):
+        return {}
+    text = open(path, encoding="utf-8").read()
+    if "### (a) Flags" not in text or "### (c) Modes" not in text:
+        return {}
+    out = {}
+    for line in text[text.index("### (a) Flags"):text.index("### (c) Modes")].splitlines():
+        if not line.startswith("| ") or line.startswith(("| Feature", "|---")):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        status = cells[2].split()[0] if cells[2] else ""
+        if status == "left":           # "left out"
+            note = cells[-1]
+            port = "na" if re.search(r"reason holds", note, re.I) and not re.search(r"counted as missing", note, re.I) else "no"
+        else:
+            port = AUDIT_PORT.get(status)
+        if port is None:
+            continue
+        names = cells[0].split("(")[0]
+        keys = [k.strip().strip("`") for k in names.split(",")] if "," in names else [names.split()[0].strip("`")]
+        for k in keys:
+            if k in codes:
+                out[k] = port
+    return out
+
+
 def export(out=OUT):
     src = os.path.abspath(bc_run.SRC)
     cwd = os.getcwd()
@@ -175,11 +218,12 @@ def export(out=OUT):
         os.chdir(cwd)
     flags, sections = {}, []
     by_cat = {}
+    port_of = {**PORT, **audit_ports({f.name for f in normal})}      # the audit wins where it has the flag
     for f in normal:
         if f.category in HIDDEN_CATEGORIES:
             continue
         by_cat.setdefault(f.category, []).append(f)
-        d = {"label": label(f), "code": f.name, "help": HELP.get(f.name, f.long_description or ""), "port": PORT.get(f.name, "no")}
+        d = {"label": label(f), "code": f.name, "help": HELP.get(f.name, f.long_description or ""), "port": port_of.get(f.name, "no")}
         if f.name in PORT_NOTE:
             d["help"] = PORT_NOTE[f.name] + "  " + d["help"]
         if f.input_type == "boolean":

@@ -64,6 +64,32 @@ def alphalores(t, log, out=None):
     log(f"bc codes: alphalores: {', '.join(names.get(a, str(a)) for a in order[:4])} ... ({len(order)} Lores)")
 
 
+RAGE_ABILITY_TYPE = 625        # the PR's Rage abilities (800 + monster: port_dances.RAGE_ABILITY_TYPE)
+
+
+def rage_order(t, log, out=None):
+    """BC's Rage list in alphabetical order (every seed: manage_reorder_rages writes its order table, sorted by the
+    seed's monster names, read by the Rage menus; audit gap #10): the Rages' sort_ids (the same values) handed out
+    in the alphabetical order of their names as the seed shows them in English, as alphalores does for Lores."""
+    import re
+    import bc_commands
+    ab, ct = t["ability"], t["content"]
+    _, msg = bc_commands._messages(out)
+    ids = [a for a, r in ab.rows.items() if r["type_id"] == str(RAGE_ABILITY_TYPE)]
+    want = set(ids)
+    names = {}
+    for r in ct.rows.values():
+        if r["type_id"] == "4" and int(r["type_value"]) in want:
+            names[int(r["type_value"])] = re.sub(r"<[^>]+>", "", msg.get(r["mes_id_name"], "")).strip()
+    slots = sorted(int(ab[a]["sort_id"]) for a in ids)
+    order = sorted(ids, key=lambda a: (names.get(a, "").lower(), a))
+    for a, sid in zip(order, slots):
+        ab[a]["sort_id"] = str(sid)
+    log(f"bc codes: rage order: {', '.join(names.get(a, str(a)) for a in order[:4])} ... ({len(order)} Rages)")
+
+
+ALWAYS = {"rage_order": (["ability", "content"], rage_order)}    # BC does these on every seed
+
 CODES = {"dancelessons": (["ability_random_group"], dancelessons),
          "alphalores": (["ability", "content"], alphalores)}
 
@@ -80,6 +106,11 @@ def apply(out, flags, log=print):
             run(t, log, out)
         else:
             run(t, log)
+        bc_commands._write(out, t)
+        done.append(code)
+    for code, (tables, run) in ALWAYS.items():
+        t = bc_commands._tables(out, tables)
+        run(t, log, out)
         bc_commands._write(out, t)
         done.append(code)
     return done

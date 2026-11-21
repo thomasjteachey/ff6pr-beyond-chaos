@@ -19,7 +19,7 @@ namespace BeyondChaos.PR
         internal static void Register()
         {
             Harness.Register("bc", _ => Status(), "bc: Beyond Chaos's data, active seed and generator");
-            Harness.Register("bcgen", Gen, "bcgen SEED [MODE] [PRESET...]: make a Beyond Chaos seed in game, apply it, check it");
+            Harness.Register("bcgen", Gen, "bcgen SEED [MODE] [PRESET...]: start a Beyond Chaos seed in game (answers at once); `bc` reports it made, applied and checked, or the error");
             Harness.Register("bcapply", a =>
             {
                 var id = a.Length > 0 ? a[0] : "none";
@@ -61,15 +61,24 @@ namespace BeyondChaos.PR
             Harness.StateParts.Add(() => Plugin.BcMode ? BcGuide.State() : "guide off (no BC data)");
             BcSelfTests.Register();   // bc-battle: bcselftest (the battle side's in-battle checks), bcselftests
             BcEvents.Register();      // bc-events: bcev (the seed's event flags, map, party), bcflag
-            Kit.Info("[bc] harness commands: bc, bcgen, bcapply, bccheck, bcscreen, bcguide, textwidth");
+            BcChecks.Register();      // the kit's self-test runner: selftest SPEC ([SelfTest] methods in any BcPlugin file)
+            BcEntrances.Register();   // strangejourney: bcdoors (the per-world doors, what a map change becomes)
+            Kit.Info("[bc] harness commands: bc, bcgen, bcapply, bccheck, bcscreen, bcguide, bcdoors, textwidth");
         }
 
         // --- battles (the PC test runner's recipe, as Brave New World's AiFights) -----------------------
         internal static bool Keep, Auto = true;
+        // a battle self-test set a party member's HP itself (a heal, a fall at 1 HP, Discordant's digit, Vampire's
+        // drain): bckeep's 9999 top-up waits until it's done (bc-5: auto_potion read "HP 9999 -> 9999", auto_down
+        // and immortal never fell)
+        internal static bool HoldHp;
 
         // every frame while on: Wait mode freezes a headless battle on command menus nobody answers
         internal static void Update()
         {
+            BcChecks.Update();        // the self-test runner on the game's clock
+            BcSelfTests.Update();     // bcselftest's hold on the battle's end
+            PollGen();                // the seed bcgen started: applied when BC has made it
             if (!Keep) return;
             try
             {
@@ -83,7 +92,8 @@ namespace BeyondChaos.PR
                     var prm = p?.BattleUnitDataInfo?.Parameter;
                     if (prm == null || prm.CurrentHP <= 0) continue;
                     if (prm.BaseMaxHp < 9999) prm.BaseMaxHp = 9999;
-                    if (prm.CurrentHP < 9999) prm.CurrentHP = 9999;
+                    int hp = BcBattleRules.KeepAliveHp(prm.CurrentHP, HoldHp);
+                    if (hp != prm.CurrentHP) prm.CurrentHP = hp;
                 }
             }
             catch (Exception e) { Hooks.WarnOnce("bc-keep", e); }
@@ -201,31 +211,51 @@ namespace BeyondChaos.PR
             var a = BcSeeds.Active;
             var (py, script, err) = BcSeeds.Gen.Resolve();
             return $"bc mode {Plugin.BcMode}; {BcSeeds.Lib.Count()} seeds; active {(a == null ? "none" : $"{a.Id} ({a.SeedText}, {a.Mode}, {a.Rows} rows, {a.Files.Length} files, {a.MonsterChests.Count} box chests, AI {(a.SnesAi != null ? "yes" : "no")})")}; " +
-                   $"startup {(BcSeeds.Lib.StartupDone ? $"done ({BcSeeds.Lib.StartupFailed} failed)" : "pending")}; generator {err ?? py + " " + script}";
+                   $"startup {(BcSeeds.Lib.StartupDone ? $"done ({BcSeeds.Lib.StartupFailed} failed)" : "pending")}; generator {err ?? py + " " + script}; " +
+                   $"bcgen: {GenState()}";
         }
 
-        static string genId;
+        // bcgen starts a seed and answers at once; the seed is taken, applied and checked here each frame (PollGen), and
+        // `bc` reports it: "bcgen: generating ..." while BC works, then "bcgen: seed ... made in N s ..." or "bcgen: error:
+        // ...". A seed can take longer than the harness gives one command (120 s: an Intermediate seed ~150 s), so a test
+        // request is `bcgen SEED MODE PRESET` then `until "made in|error:" 300 repeat bc`.
+        static string genId, genState = "none";
+        static float genStarted;
 
-        static string Gen(string[] a, int tick)
+        static string GenState() => genId != null ? $"generating {genId} ({UnityEngine.Time.realtimeSinceStartup - genStarted:0} s)" : genState;
+
+        static string Gen(string[] a)
         {
-            if (tick == 0)
+            if (genId != null) return "error: a seed is being made (" + GenState() + ")";
+            if (!LiveData.Ready) return "error: the game's data isn't loaded yet";
+            var seed = a.Length > 0 ? a[0] : "9859608359";
+            var mode = a.Length > 1 ? a[1] : "normal";
+            var preset = a.Length > 2 ? string.Join(" ", a.Skip(2)) : "New Player";
+            if (!Plugin.FlagDefs.Presets.TryGetValue(preset, out var flags)) return $"error: no preset '{preset}'";
+            var id = SeedLibrary.NewId(seed) + "-test";
+            var err = BcSeeds.Gen.Start(seed, flags, BcSeeds.Lib.DirFor(id), ("mode", mode));
+            if (err != null) { genState = "error: " + err; return genState; }
+            genId = id;
+            genStarted = UnityEngine.Time.realtimeSinceStartup;
+            return $"generating {id} ({mode}, {preset}); `bc` reports when it is done";
+        }
+
+        // each frame (Update): the seed bcgen started, once BC has made it: loaded, applied, checked
+        static void PollGen()
+        {
+            if (genId == null || !BcSeeds.Gen.TakeResult(out bool ok, out string error, out string dir)) return;
+            genId = null;
+            try
             {
-                if (!LiveData.Ready) return "error: the game's data isn't loaded yet";
-                var seed = a.Length > 0 ? a[0] : "9859608359";
-                var mode = a.Length > 1 ? a[1] : "normal";
-                var preset = a.Length > 2 ? string.Join(" ", a.Skip(2)) : "New Player";
-                if (!Plugin.FlagDefs.Presets.TryGetValue(preset, out var flags)) return $"error: no preset '{preset}'";
-                genId = SeedLibrary.NewId(seed) + "-test";
-                var err = BcSeeds.Gen.Start(seed, flags, BcSeeds.Lib.DirFor(genId), ("mode", mode));
-                return err != null ? "error: " + err : null;
+                if (!ok) { genState = $"error: {error}"; return; }
+                var s = BcSeeds.Lib.Load(Path.GetFileName(dir));
+                if (s == null) { genState = "error: the seed was made but can't be read"; return; }
+                var aerr = BcSeeds.Lib.Apply(s);
+                genState = aerr != null ? "error: apply: " + aerr
+                    : $"seed {s.SeedText} made in {s.Seconds:0.0} s (generator) / {BcSeeds.Gen.Seconds:0.0} s; {BcSeeds.Lib.LastApply}; {Check()}";
             }
-            if (!BcSeeds.Gen.TakeResult(out bool ok, out string error, out string dir)) return null;   // still making it
-            if (!ok) return $"error: {error}";
-            var s = BcSeeds.Lib.Load(Path.GetFileName(dir));
-            if (s == null) return "error: the seed was made but can't be read";
-            var aerr = BcSeeds.Lib.Apply(s);
-            if (aerr != null) return "error: apply: " + aerr;
-            return $"seed {s.SeedText} made in {s.Seconds:0.0} s (generator) / {BcSeeds.Gen.Seconds:0.0} s; {BcSeeds.Lib.LastApply}; {Check()}";
+            catch (Exception e) { genState = $"error: {e.GetType().Name}: {e.Message}"; }
+            finally { Kit.Info("[bc] bcgen: " + genState); }
         }
 
         // the active seed's tables as the game now has them (a few columns of three tables) and its files

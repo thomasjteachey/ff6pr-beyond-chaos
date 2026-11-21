@@ -81,7 +81,7 @@ namespace BeyondChaos.PR
 
         static string Text(string key)
         {
-            try { return global::Last.Management.MessageManager.Instance?.GetMessageByMessageConclusion(key) ?? "(none)"; }
+            try { return PrKit.GameText.Get(key) ?? "(none)"; }
             catch (Exception e) { return "(" + e.GetType().Name + ")"; }
         }
     }

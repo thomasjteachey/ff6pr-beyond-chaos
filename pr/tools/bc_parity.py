@@ -37,6 +37,12 @@ def snapshot(tmp):
     shutil.copytree(os.path.join(ROOT, "data"), os.path.join(snap, "data"))
     os.makedirs(os.path.join(snap, "plugin", "BcPlugin"))
     shutil.copy2(os.path.join(ROOT, "plugin", "BcPlugin", "bc_flags.json"), os.path.join(snap, "plugin", "BcPlugin"))
+    # FF6's resident waveforms as the player bundle has them (data/ff6_resident.json: bc_music.bundle_data): the
+    # snapshot has no ROM beside it, so without this its ROM-free seed would lack them and differ from BC's exe's
+    import bc_music
+    res = bc_music.resident_source()
+    if isinstance(res, dict):
+        bc_music.SS.write_resident_file(res, os.path.join(snap, "data", bc_music.RESIDENT_FILE))
     env = {"FF6PR_ROOT": ROOT, "FF6_BC_SRC": os.path.abspath(bc_run.SRC), "FF6_BC_HOME": os.path.abspath(bc_run.HOME)}
     return snap, env
 

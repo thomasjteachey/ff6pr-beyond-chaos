@@ -138,6 +138,10 @@ def port_in_process(rom, name, log):
         prof.character_names = True  # BC's names for the 14 characters (c, makeover) onto MSG_CHAR_NAME_* (port_names)
         prof.guest_commands = True   # BC's `o` gives the guests (Ghosts, Moogles ...) commands too
         prof.metamorph_monsters = True   # BC re-rolls each monster's metamorph set and odds (port_procs)
+        # the menus' help (audit gap #10): each Dance lists its steps and each Rage its two attacks (port_dances; no
+        # words of BC's own: {} = every Rage described from its abilities), as BC's menus show them
+        prof.dance_descriptions = True
+        prof.rage_descriptions = lambda: {}
         with contextlib.redirect_stdout(log):
             port.main(prof)
     except SystemExit as e:
@@ -253,10 +257,13 @@ def main():
         say(f"error: Beyond Chaos stopped: {e}")
         raise SystemExit(1)
     log.write(bc_out.getvalue())
+    # BC's effective flags (bc_run.effective_flags: the mode's forced ones, those BC turns on itself, minus the
+    # prohibited): what the steps check. BC itself and the seed string keep the typed ones (the seed's identity).
+    eff = capture.get("flags") or flags
     rom = os.path.join(work, "bc_out.bin")      # never a file: the port reads it from memory
     S.MEMORY[os.path.abspath(rom)] = data
     info = {"seed": seed, "mode": a.mode, "flags": flags, "preset": a.preset, "version": bc_run.VERSION,
-            "seed_string": bc_run.seed_string(seed, a.mode, flags)}
+            "seed_string": bc_run.seed_string(seed, a.mode, flags), "effective_flags": eff}
     say(f"randomized in {time.time() - t0:.1f} s")
 
     say("porting to the Pixel Remaster")
@@ -298,7 +305,7 @@ def main():
     # BC's small codes that are data here (tools/bc_codes.py)
     import bc_codes
     try:
-        info["codes"] = bc_codes.apply(out, flags, lambda m: log.write(m + "\n"))
+        info["codes"] = bc_codes.apply(out, eff, lambda m: log.write(m + "\n"))
     except Exception as e:  # noqa: BLE001
         import traceback
         log.write(traceback.format_exc())
@@ -306,9 +313,14 @@ def main():
     # BC's data the shared porter doesn't carry by itself: dance names, starting gil (tools/bc_data.py)
     import bc_data
     try:
-        info.update(bc_data.apply(out, data, S.rom_bytes(P.VANILLA_ROM), flags, lambda m: log.write(m + "\n")))
+        info.update(bc_data.apply(out, data, S.rom_bytes(P.VANILLA_ROM), eff, lambda m: log.write(m + "\n")))
         if capture.get("event_items"):
             info["event_items"] = capture["event_items"]   # BC's event gifts, before/after (bc_data.prepare; for bc_events)
+        # bingoboingo's cards (bc_run takes them from BC's run): beside the seed, shown by the guide (bc_guide)
+        for n, card in enumerate(capture.get("bingo") or [], 1):
+            with open(os.path.join(out, f"bingo_{n}.txt"), "w", encoding="utf-8", newline="") as f:
+                f.write(card.replace("\r\n", "\n").replace("\n", "\r\n"))
+            info.setdefault("bingo", []).append(f"bingo_{n}.txt")
     except Exception as e:  # noqa: BLE001
         import traceback
         log.write(traceback.format_exc())
@@ -317,7 +329,7 @@ def main():
     # effects) into bc_battle.json (tools/bc_battle.py)
     import bc_battle
     try:
-        info["battle"] = bc_battle.apply(out, rom, spoiler, flags, lambda m: log.write(m + "\n"))
+        info["battle"] = bc_battle.apply(out, rom, spoiler, eff, lambda m: log.write(m + "\n"))
     except Exception as e:  # noqa: BLE001 - the seed still plays without the battle side's extras
         import traceback
         log.write(traceback.format_exc())
@@ -326,24 +338,37 @@ def main():
     # and tables, read from BC's output, and bc_events.json for the plugin (tools/bc_events.py)
     import bc_events
     try:
-        ev_files, ev = bc_events.apply(out, flags, rom=data, vanilla_rom=P.VANILLA_ROM, spoiler=spoiler,
-                                       capture=capture, log=lambda m: log.write(m + "\n"))
+        ev_files, ev = bc_events.apply(out, eff, rom=data, vanilla_rom=P.VANILLA_ROM, spoiler=spoiler,
+                                       capture=capture, log=lambda m: log.write(m + "\n"), mode=a.mode)
         files.extend(f for f in ev_files if f not in files)
         info["events"] = {k: v for k, v in ev.items() if k in ("flags", "lines")}
     except Exception as e:  # noqa: BLE001 - the seed still plays, with vanilla's events
         import traceback
         log.write(traceback.format_exc())
         say(f"warning: BC's events weren't made: {e}")
+    # bc-strange: `strangejourney`'s shuffled short entrances on the PR's doors, after bc_events (its map files are the
+    # seed's copies): the doors' map files and new arrival points in files/, bc_doors.json (what wasn't rewired, the
+    # doors several story versions or both worlds share, for the plugin) (tools/bc_entrances.py)
+    try:
+        import bc_entrances
+        door_files, doors = bc_entrances.apply(out, eff, data, vanilla, mode=a.mode, log=lambda m: log.write(m + "\n"))
+        files.extend(f for f in door_files if f not in files)
+        if doors:
+            info["entrances"] = doors
+    except Exception as e:  # noqa: BLE001 - the seed still plays, with the PR's doors
+        import traceback
+        log.write(traceback.format_exc())
+        say(f"warning: BC's entrance shuffle wasn't ported: {e}")
     # bc-seeds: BC's event gifts (`t` rerolls 28: Owzer's, the Sealed Gate's, Vector's...) in the PR's scripts
     # that give them, after bc_events (its cut scenes carry their own) (tools/bc_gifts.py)
     # and `y`'s esper shuffle: the espers those scripts give, the lines naming them, the Phoenix Cave, the sword
     import bc_gifts
     try:
         if capture.get("event_items"):
-            gift_files, info["event_gifts"] = bc_gifts.apply(out, capture["event_items"], flags,
+            gift_files, info["event_gifts"] = bc_gifts.apply(out, capture["event_items"], eff,
                                                              lambda m: log.write(m + "\n"))
             files.extend(f for f in gift_files if f not in files)
-        esper_files, espers = bc_gifts.espers(out, data, S.rom_bytes(P.VANILLA_ROM), flags,
+        esper_files, espers = bc_gifts.espers(out, data, S.rom_bytes(P.VANILLA_ROM), eff,
                                               lambda m: log.write(m + "\n"))
         files.extend(f for f in esper_files if f not in files)
         if espers:
@@ -363,7 +388,7 @@ def main():
     # bc-sprites: `n`'s window colors on the PR's window sprites (tools/bc_palettes.py)
     try:
         import bc_palettes
-        pal = bc_palettes.build(out, data, flags, vanilla=vanilla, log=lambda m: log.write(m + "\n"))
+        pal = bc_palettes.build(out, data, eff, vanilla=vanilla, log=lambda m: log.write(m + "\n"))
         if pal:
             info["palettes"] = pal
     except Exception as e:  # noqa: BLE001 - the seed still plays with the game's windows
@@ -388,7 +413,7 @@ def main():
     # played in game by the kit's SNES player (tools/bc_music.py, BcMusic.cs)
     try:
         import bc_music
-        info["music"] = bc_music.apply(out, data, P.VANILLA_ROM, flags, lambda m: log.write(m + "\n"))
+        info["music"] = bc_music.apply(out, data, P.VANILLA_ROM, eff, lambda m: log.write(m + "\n"))
     except Exception as e:  # noqa: BLE001 - the seed still plays with the game's own music
         import traceback
         log.write(traceback.format_exc())
@@ -399,7 +424,7 @@ def main():
                       ("command_weapons", lambda: seed_info.command_weapons(P.VANILLA_ROM, rom)),
                       # BC shows every reward (its show_coliseum_rewards patch) unless fightclub: then the SNES rule
                       ("coliseum", lambda: seed_info.coliseum(P.VANILLA_ROM, rom, hidden=(lambda b: b != 0)
-                                                              if "fightclub" in flags.split() else (lambda b: False))),
+                                                              if "fightclub" in eff.split() else (lambda b: False))),
                       (None, lambda: seed_info.monster_chests(P.VANILLA_ROM, rom))):
         try:
             if key:
@@ -416,7 +441,7 @@ def main():
         flags_json = FLAGS_JSON
         modes = json.load(open(flags_json, encoding="utf-8")).get("modes", []) if os.path.exists(flags_json) else []
         info["mode_label"] = next((m["label"] for m in modes if m["name"] == a.mode), a.mode)
-        info["guide"] = bc_guide.for_seed(out, flags, info, FLAGS_JSON,
+        info["guide"] = bc_guide.for_seed(out, eff, info, FLAGS_JSON,
                                           lambda m: log.write(m + "\n"))
         rel, info["guide_messages"] = bc_guide.write_in_game(out, info["guide"], info, info.get("mode_label", "Normal"),
                                                              lambda m: log.write(m + "\n"))

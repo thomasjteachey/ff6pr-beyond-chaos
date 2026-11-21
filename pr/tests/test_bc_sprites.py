@@ -218,6 +218,18 @@ class ArtJson(unittest.TestCase):
                 self.assertIn(addr, art["sprites"], f"{g}/{k}")
 
 
+class ThemedModes(unittest.TestCase):
+    """suplexwrecks / bravenudeworld / quikdraw / halloween are BC's change_to with every slot on one character
+    (appearance.manage_character_appearance): plan() draws each slot with that character's PR art."""
+
+    def test_suplexwrecks_plan(self):
+        import bc_sprites as B
+        ids = list(range(21))
+        cap = {"sprites": {"change_to": {c: 5 for c in ids}, "char_ids": ids}}
+        p = B.plan(cap, bytes(0x300000))
+        self.assertEqual({("vanilla", 5)}, {v["art"] for s, v in p.items() if s in ids})
+
+
 class Opera(unittest.TestCase):
     """alasdraco's singers (bc_sprites.opera): BC's sheet offsets and the NPC poses as BC lays them out."""
 

@@ -21,6 +21,7 @@
       "name": "BeyondChaos",
       "game": "ff6",
       "title": "Beyond Chaos CE 6.1.3 for FINAL FANTASY VI Pixel Remaster",
+      "version": "0.1.0",
       "plugin": {
         "project": "plugin/BcPlugin",
         "files": [
@@ -70,7 +71,7 @@
           "tools/bc_bundle.py"
         ]
       ],
-      "readme_note": "Playing: on the title screen, choose \"Beyond Chaos\". Pick a preset (New Player ... Race Insane) or\npaste Beyond Chaos flags (Ctrl+V), type a seed or leave a random one, then \"Generate and play this\nseed\" and start a New Game. Saves remember their seed. A seed, mode and flags make the same game as\nBeyond Chaos CE 6.1.3's own randomizer, made in the game by Beyond Chaos's own code (bundled Python; no\nSNES ROM needed: the game's own files are read from your copy of the game on the first start).\nBeyond Chaos is by Abyssonym and the Beyond Chaos Community Edition team (MIT license:\nBepInEx/BeyondChaos/generator/bc/LICENSE.txt).\n\nThis is a mod of its own: don't install it beside the project's other game-data mods (Brave New\nWorld, Worlds Collide). Start a new game after installing."
+      "readme_note": "Version 0.1.0, the first playable release (a Pre-release: expect rough edges).\n\nMaking a seed: on the title screen, choose \"Beyond Chaos\". Pick a preset (New Player, Intermediate,\nAdvanced, Chaotic, Race Easy/Medium/Insane) or paste Beyond Chaos flags (Ctrl+V), type a seed or leave\na random one, then \"Generate and play this seed\" and start a New Game. A seed takes one to two minutes\nto make (Chaotic, with remonsterate's monster pictures, takes longest). Saves remember their\nseed. A seed, mode and flags make the same game as Beyond Chaos CE 6.1.3's own randomizer: it's made in\nthe game by Beyond Chaos's own code (bundled Python, no SNES ROM needed; the game's own files are read\nfrom your copy of the game on the first start). Each seed comes with a short guide to what Beyond Chaos\nchanged, shown after the opening's controls tutorial.\n\nWhat's carried over: BC's randomized characters, commands, espers, items, shops, chests, monsters and\ntheir AI, formations and encounters, the Colosseum, natural magic, character and monster names, its new\ncharacter art (makeover) and monster pictures (remonsterate), its music (johnnydmad), and most of its\ncodes and light event changes. The options screen marks every flag: carried, partly carried, not yet,\nor no bearing on the Pixel Remaster.\n\nNot yet: the race and cave modes (Kefka @ Narshe, Ancient Cave, Speed Cave, Race Cave, Dragon Hunt:\nuse Normal), the `d` dungeon remap, Divergent paths (thescenarionottaken) and the flags\nmarked \"not yet\" on the options screen. strangejourney is partly in (most doors are\nrewired; some story-version doors keep their own targets). Gau doesn't start with an empty rage list under `o` yet.\n\nBeyond Chaos is by Abyssonym and the Beyond Chaos Community Edition team (MIT license:\nBepInEx/BeyondChaos/generator/bc/LICENSE.txt). Its art and music come from the Beyond Chaos community's\npacks, bundled with their authors' permission.\n\nThis is a mod of its own: don't install it beside the project's other game-data mods (Brave New\nWorld, Worlds Collide). Start a new game after installing."
     }
   }
 }

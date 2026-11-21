@@ -44,8 +44,19 @@ namespace BeyondChaos.PR
                 bool skip = false;
                 BcSelfTests.Add("junction " + test.Name,
                     () => skip ? "ok: skipped (this seed has no junction effects; bcjgen makes one)" : test.Check(),
-                    () => { skip = !BcJunction.Load(); if (!skip) test.Start?.Invoke(); },
-                    test.Timeout);
+                    () =>
+                    {
+                        skip = !BcJunction.Load();
+                        if (skip || test.Start == null) return;
+                        // a check that acts needs someone to act on (bc-5: the monsters dead of the start check's
+                        // Doom, LivingEnemy() was null and elements, pierce and corrosive_juggler threw NREs)
+                        if (LivingEnemy() == null) throw new InvalidOperationException("no living monster to test on (the battle is over)");
+                        if (P(0) == null) throw new InvalidOperationException("no party member 0");
+                        test.Start();
+                    },
+                    test.Timeout,
+                    // however it ended (answer, time-out, a throw): its effects, statuses and HP hold go
+                    () => { if (!skip) End(); });
             }
         }
 
@@ -74,7 +85,7 @@ namespace BeyondChaos.PR
                 Act(P(0), e, AttackAbility(), 1);
             }, began =>
             {
-                var l = Since(began, P(0)).FirstOrDefault();
+                var l = Mine(began, P(0), AttackAbility()).FirstOrDefault();
                 if (l == null) return null;
                 var hit = l.Units.FirstOrDefault(x => x.Targeted);
                 return hit == null ? "FAILED: the act landed with no target result"
@@ -89,7 +100,7 @@ namespace BeyondChaos.PR
                 for (int i = 0; i < 8; i++) Act(LivingEnemy(), P(0), AttackAbility(), 1);
             }, began =>
             {
-                var acts = Since(began, LivingEnemy());
+                var acts = Mine(began, LivingEnemy(), AttackAbility());
                 if (acts.Count < 8) return null;
                 int toTaunter = acts.Count(l => l.Units.Any(x => x.Targeted && x.Unit.Pointer == P(1).Pointer));
                 int toOriginal = acts.Count(l => l.Units.Any(x => x.Targeted && x.Unit.Pointer == P(0).Pointer));
@@ -142,7 +153,7 @@ namespace BeyondChaos.PR
                 for (int i = 0; i < 10; i++) Act(LivingEnemy(), P(0), AttackAbility(), 1);
             }, began =>
             {
-                var acts = Since(began, LivingEnemy());
+                var acts = Mine(began, LivingEnemy(), AttackAbility());
                 if (acts.Count < 10) return null;
                 var on = acts.Select(l => On(l, P(0))).Where(x => x != null && x.Targeted).ToList();
                 int missed = on.Count(x => x.Missed || x.Damage == 0);
@@ -173,6 +184,8 @@ namespace BeyondChaos.PR
             BcJunctionDamage.Logging = true;
             BcJunction.Granted.Clear();
             BcJunction.Invalidate();
+            Tidy();
+            BcHarness.HoldHp = true;     // the check's own HP stays (bckeep tops up to 9999 otherwise)
         }
 
         internal static void End()
@@ -180,7 +193,37 @@ namespace BeyondChaos.PR
             BcJunction.Granted.Clear();
             BcJunction.Testing = false;
             BcJunction.Invalidate();
+            Tidy();
+            BcHarness.HoldHp = false;
         }
+
+        // The statuses the checks give (or effects give in them) taken off every fighter, and the battle's level /
+        // max HP / Def changes dropped, so each check starts from the same battle. bc-5: the start check's Plague
+        // Doom stayed on all four monsters and killed them ~53 s later (the PR's countdown, 40 at ~1.33 s), which
+        // ended the battle for the 24 checks after it; its Reraise on Biggs would also have raised auto_down's
+        // target before the Phoenix Down, and resonate's Haste on party member 0 answered sos's "Haste".
+        static readonly ConditionType[] Scratch =
+        {
+            ConditionType.Doom, ConditionType.Heist, ConditionType.Regeneration, ConditionType.Reraise, ConditionType.Sleep,
+            ConditionType.Confusion, ConditionType.Zombie, ConditionType.Vanish, ConditionType.Transparent,
+        };
+
+        internal static void Tidy()
+        {
+            var cc = BattlePlugManager.Instance()?.BattleConditionController;
+            if (cc == null) return;
+            foreach (var u in BcJunction.Party().Concat(BcJunction.Enemies()).ToList())
+                foreach (var s in Scratch)
+                    if (BcJunction.HasStatus(u, s))
+                        try { cc.InterruptRemoveCondition(u, s); } catch (Exception e) { Hooks.WarnOnce("bc-junction-tidy", e); }
+            BcJunctionStats.Clear();
+        }
+
+        // the acts the check queued itself (Act / Cast: BcJunctionActs marks them Ours) by `who` since `since`, with
+        // `ability` (0: any): not an auto-battle act of the same fighter (bckeep's auto: MagiTek every ~2 s in bc-5),
+        // a monster's own AI act, or a counter an effect queued
+        internal static List<Log> Mine(float since, BattleUnitData who, int ability = 0) =>
+            Since(since, who).Where(l => l.Act.Ours && !l.Act.Counter && (ability == 0 || l.Act.Ability?.Id == ability)).ToList();
 
         internal static BattleUnitData P(int slot) => BcJunction.Party().Skip(slot).FirstOrDefault();
         internal static BattleUnitData E(int slot) => BcJunction.Enemies().Skip(slot).FirstOrDefault();

@@ -35,21 +35,28 @@ import json, sys
 sys.path.insert(0, "tools")
 import ff6snes as F, prdata as P, bc_run, bc_events
 capture = {}
-data, _ = bc_run.run(F.rom_bytes(P.VANILLA_ROM), sys.argv[1], "normal", sys.argv[2], say=lambda _: None, capture=capture,
+data, _ = bc_run.run(F.rom_bytes(P.VANILLA_ROM), sys.argv[1], sys.argv[4] if len(sys.argv) > 4 else "normal", sys.argv[2],
+                     say=lambda _: None, capture=capture,
                      prepare=lambda: bc_events.prepare(capture))
 bc_run.write_output(sys.argv[3], data)
-json.dump({k: v for k, v in capture.items() if k in ("clock", "wor_recruits", "wor_free", "opera")}, open(sys.argv[3] + ".capture.json", "w"))
+with open(sys.argv[3] + ".capture.json", "w") as f:
+    json.dump({k: v for k, v in capture.items() if k in ("clock", "wor_recruits", "wor_free", "opera", "texts")}, f)
 """
 
 
-def bc_output(name, flags):
-    """BC's output ROM bytes for BASE + flags (made once, cached, with bc_events.prepare's capture beside it)."""
+def bc_output(name, flags, mode="normal"):
+    """BC's output ROM bytes for BASE + flags in `mode` (made once, cached, with bc_events.prepare's capture beside it)."""
     import ff6snes as F
     path = os.path.join(CACHE, f"{name}.bin")
     if not os.path.exists(path + ".capture.json"):
         os.makedirs(CACHE, exist_ok=True)
-        subprocess.run([sys.executable, "-c", RUN, SEED, f"{BASE} {flags}".strip(), path], check=True,
+        # made under a name of this process's own, then moved in (the capture last: it marks the pair done), so a
+        # second session running these tests at the same time never reads a half-written ROM
+        tmp = f"{path}.{os.getpid()}.tmp"
+        subprocess.run([sys.executable, "-c", RUN, SEED, f"{BASE} {flags}".strip(), tmp, mode], check=True,
                        capture_output=True, cwd=PR)
+        os.replace(tmp, path)
+        os.replace(tmp + ".capture.json", path + ".capture.json")
     return F.rom_bytes(path)
 
 
@@ -71,7 +78,17 @@ class Seed:
         msg = os.path.join(self.out, *L.MESSAGE_PATH.split("/"), "system_en.txt")
         os.makedirs(os.path.dirname(msg), exist_ok=True)
         open(msg, "w").close()
-        self.files, self.data = B.apply(self.out, flags, rom=rom, capture=capture, log=lambda m: None)
+        self.log = []
+        self.files, self.data = B.apply(self.out, flags, rom=rom, capture=capture, log=self.log.append)
+
+    def part(self, flag):
+        """bc_events.json's part for `flag`; when its handler failed (apply leaves the flag out and logs why),
+        an AssertionError with that log instead of a bare KeyError."""
+        if flag not in self.data:
+            why = [m for m in self.log if m.startswith(f"{flag}: failed") or m.startswith("Traceback") or "Error" in m]
+            raise AssertionError(f"bc_events.apply left out {flag!r} (failed: {self.data.get('failed')}):\n"
+                                 + "\n".join(why or self.log[-20:]))
+        return self.data[flag]
 
     def script(self, name):
         return json.load(open(os.path.join(self.out, "files", *B.script_rel(name).split("/")), encoding="utf-8"))
@@ -101,6 +118,45 @@ class Seed:
 
     def close(self):
         shutil.rmtree(self.out, ignore_errors=True)
+
+
+EFF_RUN = r"""
+import json, sys
+sys.path.insert(0, "tools")
+import bc_run, ff6snes as F, prdata as P
+capture = {}
+bc_run.run(F.rom_bytes(P.VANILLA_ROM), sys.argv[1], sys.argv[2], sys.argv[3], say=lambda l: None, capture=capture)
+json.dump(capture["flags"], open(sys.argv[4], "w"))
+"""
+
+
+def effective(name, mode, flags):
+    """BC's effective flags (bc_run.effective_flags via capture["flags"]) for SEED in `mode` with `flags`: cached."""
+    path = os.path.join(CACHE, f"eff_{name}.json")
+    if not os.path.exists(path):
+        os.makedirs(CACHE, exist_ok=True)
+        subprocess.run([sys.executable, "-c", EFF_RUN, SEED, mode, flags, path], check=True, capture_output=True, cwd=PR)
+    with open(path, encoding="utf-8") as f:
+        return f.read().strip('"').split()
+
+
+class EffectiveFlags(unittest.TestCase):
+    """bc_seed hands its steps BC's own effective flags (bc_run.effective_flags), not the typed string: the mode's
+    forced flags and those BC turns on itself are on, in BC's short codes."""
+
+    def test_dragon_hunt_forces_worringtriad(self):
+        self.assertIn("worringtriad", effective("dragonhunt", "dragonhunt", "o w t m"))
+
+    def test_strangejourney_turns_notawaiter_on(self):
+        eff = effective("strangejourney", "normal", "o w t m strangejourney")
+        self.assertIn("notawaiter", eff)
+        self.assertTrue({"o", "w", "t", "m", "strangejourney"} <= set(eff))
+
+    def test_new_player_keeps_the_short_codes(self):
+        import bc_seed
+        eff = effective("newplayer", "normal", bc_seed.PRESETS["New Player"])
+        self.assertTrue({"t", "y", "o", "w"} <= set(eff), eff)                     # bc_data / bc_gifts test these
+        self.assertTrue(any(f.startswith("expboost:") for f in eff), eff)          # name:value flags keep their value
 
 
 class Files(unittest.TestCase):
@@ -171,7 +227,7 @@ class Flags(unittest.TestCase):
     def doors(self, rom):
         seed = Seed("j", rom)
         try:
-            return {(d[0], tuple(d[1])): (d[2] if isinstance(d[2], str) else tuple(d[2])) for d in seed.data["j"]["doors"]}, seed
+            return {(d[0], tuple(d[1])): (d[2] if isinstance(d[2], str) else tuple(d[2])) for d in seed.part("j")["doors"]}, seed
         except Exception:
             seed.close()
             raise
@@ -201,7 +257,7 @@ class Flags(unittest.TestCase):
         self.assertEqual(B.clock_answer(bc_output("base", "")), [2, 0, 4])        # vanilla 6:10:50
         seed = Seed("k", bc_output("k", "k"), capture=capture_of("k"))
         try:
-            k = seed.data["k"]
+            k = seed.part("k")
             self.assertEqual(k["time"], "6:50:30")
             self.assertEqual(len(k["hints"]), 8)
             import test_wc as W
@@ -221,7 +277,7 @@ class Flags(unittest.TestCase):
     def test_lessfanatical_drops_the_towers_magic_only_script(self):
         seed = Seed("lessfanatical", bc_output("base", ""), tables=["monster_party"])
         try:
-            self.assertEqual(len(seed.data["lessfanatical"]["parties"]), 18)
+            self.assertEqual(len(seed.part("lessfanatical")["parties"]), 18)
             import seed_live as L
             with open(os.path.join(seed.out, *L.MASTER_PATH.split("/"), "monster_party.csv"), encoding="utf-8") as f:
                 t = P.Table("monster_party", f.read())
@@ -258,7 +314,7 @@ class Flags(unittest.TestCase):
         self.assertGreaterEqual(len(sites), 9)
         seed = Seed("r", rom, capture=cap)
         try:
-            done = seed.data["r"]["sites"]
+            done = seed.part("r")["sites"]
             for site, new in sites.items():
                 old = B.SITES[site][0]
                 if new == old:
@@ -294,12 +350,118 @@ class Flags(unittest.TestCase):
         want = [idmap.item_content(rom[a + 1]) for a in B.BANON_ITEMS]
         seed = Seed(f"{BASE} notawaiter", rom)
         try:
-            self.assertEqual(seed.data["notawaiter"]["banon"], want)
+            self.assertEqual(seed.part("notawaiter")["banon"], want)
             gets = [o["operands"]["iValues"][0] for o in seed.script(B.BANON)["Mnemonics"] if o["mnemonic"] == "GetItem"]
             self.assertNotIn(B.GAUNTLET, gets)
             vanilla = sum(1 for o in S.load(B.BANON)["Mnemonics"] if o["mnemonic"] == "GetItem" and
                           o["operands"]["iValues"][0] == B.GAUNTLET)
             self.assertEqual(sorted(gets), sorted(want * vanilla))
+        finally:
+            seed.close()
+
+    def test_always_on_texts_in_the_prs_lines(self):
+        """Every seed: BC's passwords, poem and hints (Sabin's command, the collapsing house) in the PR's own lines, as
+        BC made them (recorded by bc_events.prepare); the PR's pages and codes kept, the baseline restores them."""
+        rom = bc_output("texts", "")
+        seed = Seed(BASE, rom, capture=capture_of("texts"))
+        got = capture_of("texts")["texts"]
+        try:
+            st = seed.messages("story_mes_en")
+            self.assertEqual([st[k] for k in B.PASSWORD_KEYS], [f'"{p}"' for p in got["passwords"]])
+            poem = st[B.POEM_KEY]
+            self.assertTrue(poem.startswith("<CT>") and poem.endswith(B.POEM_PAGE), poem)
+            self.assertEqual(poem.count(B.POEM_PAGE), got["poem"].count("<wait 390 frames>"))
+            self.assertIn("He is a master of the art of ", st[B.SABIN_KEY])
+            self.assertIn("Mt. Kolts", st[B.SABIN_KEY])                                 # the PR's own page stays
+            if got.get("house"):
+                self.assertNotIn("petrifying", st[B.HOUSE_KEY])
+            self.assertTrue(set(B.TEXT_KEYS) <= set(B.story_keys()))
+        finally:
+            seed.close()
+
+    def test_katn_espers_and_lete_river(self):
+        """katn: BC's random starting espers (its code at 0x305000) as GetItem in the opening (not the title's demo), and
+        every Lete River roll a fight; a normal seed has neither."""
+        import test_wc as W
+        import idmap
+        rom = bc_output("katn", "", mode="katn")
+        espers = B.katn_espers(rom)
+        self.assertTrue(4 <= len(espers) <= 7, espers)                     # BC: 4 + 0..2 + 0..1
+        out = tempfile.mkdtemp(prefix="bc_events_katn_")
+        try:
+            import seed_live as L
+            msg = os.path.join(out, *L.MESSAGE_PATH.split("/"), "system_en.txt")
+            os.makedirs(os.path.dirname(msg), exist_ok=True)
+            open(msg, "w").close()
+            _, data = B.apply(out, BASE, rom=rom, capture=capture_of("katn"), log=lambda m: None, mode="katn")
+            self.assertEqual(data["mode:katn"]["espers"], espers)
+            self.assertGreater(data["mode:katn"]["lete_river"], 5)
+            opening = json.load(open(os.path.join(out, "files", *B.script_rel(B.OPENING).split("/")), encoding="utf-8"))
+            r = W.Run(opening, W.State())
+            got = [t[2][0] for t in r.did("GetItem")]
+            self.assertEqual(got, [idmap.esper_content(e) for e in espers])
+            demo = W.State()
+            demo.set("MapLocalVariable", 7, 1)                              # the title's demo: nothing given
+            self.assertFalse(W.Run(opening, demo).did("GetItem"))
+            raft = json.load(open(os.path.join(out, "files", *B.script_rel(B.LETE_RIVER).split("/")), encoding="utf-8"))
+            ms = raft["Mnemonics"]
+            self.assertFalse([k for k in range(1, len(ms)) if ms[k]["mnemonic"] == "Branch" and
+                              ms[k]["operands"]["sValues"][0] == "MapLocalVariable" and ms[k]["operands"]["iValues"][0] == 3
+                              and ms[k - 1]["mnemonic"] == "SetRandomValue"])
+        finally:
+            shutil.rmtree(out, ignore_errors=True)
+        self.assertEqual(B.katn_espers(bc_output("base", "")), [])
+
+    def test_race_modes_end_on_our_screen(self):
+        """katn ends after Kefka at Narshe is won (not lost), dragonhunt once the 8th dragon falls (not before): the
+        race-over line set live (BC:raceover), shown, then the title (BC:totitle)."""
+        import test_wc as W
+        import seed_live as L
+        rom = bc_output("base", "")
+        for mode in ("katn", "dragonhunt"):
+            out = tempfile.mkdtemp(prefix=f"bc_events_{mode}_")
+            try:
+                msg = os.path.join(out, *L.MESSAGE_PATH.split("/"), "system_en.txt")
+                os.makedirs(os.path.dirname(msg), exist_ok=True)
+                open(msg, "w").close()
+                _, data = B.apply(out, BASE, rom=rom, capture=capture_of("base"), log=lambda m: None, mode=mode)
+                self.assertNotIn("failed", data)
+                key = data["race_end"][mode]
+                calls = {"BC:raceover " + key + " " + mode: lambda st: None, "BC:totitle": lambda st: None}
+                if mode == "katn":
+                    sc = json.load(open(os.path.join(out, "files", *B.script_rel(B.NARSHE_WON).split("/")), encoding="utf-8"))
+                    won = W.State()
+                    won.set("ScriptLocalVariable", 0, 1)
+                    r = W.Run(sc, won, syscalls=calls)
+                    self.assertTrue(r.did("SysCall", "BC:totitle") and r.did("Msg", key))
+                    lost = W.State()
+                    lost.set("ScriptLocalVariable", 0, 2)
+                    self.assertFalse(W.Run(sc, lost, syscalls=calls).did("SysCall", "BC:totitle"))
+                else:
+                    last = sorted(B.DRAGONS)[-1]
+                    sc = json.load(open(os.path.join(out, "files", *B.script_rel(last).split("/")), encoding="utf-8"))
+                    st = W.State()
+                    for f in B.DRAGONS.values():
+                        st.set("ScenarioFlag2", f, 1)
+                    self.assertTrue(W.Run(sc, st, syscalls=calls).did("SysCall", "BC:totitle"))
+                    early = W.State()                                     # this one dragon only: the game goes on
+                    self.assertFalse(W.Run(sc, early, syscalls=calls).did("SysCall", "BC:totitle"))
+            finally:
+                shutil.rmtree(out, ignore_errors=True)
+
+    def test_strangejourney_is_a_notawaiter_game(self):
+        """BC turns notawaiter on with strangejourney (options.py activate_flags): a strangejourney seed's flags
+        string doesn't list it, yet its scenes are cut and its Mobliz letters go at once, as in BC."""
+        seed = Seed(f"{BASE} strangejourney", bc_output("base", ""))
+        try:
+            self.assertIn("notawaiter", seed.data["flags"])
+            self.assertIn("notawaiter", seed.data)
+            self.assertIn(B.script_rel(B.LETTERS), seed.files)
+        finally:
+            seed.close()
+        seed = Seed(BASE, bc_output("base", ""))
+        try:
+            self.assertNotIn("notawaiter", seed.data["flags"])
         finally:
             seed.close()
 
@@ -334,7 +496,7 @@ class Flags(unittest.TestCase):
         import test_wc as W
         seed = Seed(f"{BASE} mimetime", bc_output("mimetime", "mimetime"), capture=capture_of("mimetime"))
         try:
-            part = seed.data["mimetime"]
+            part = seed.part("mimetime")
             self.assertEqual((part["room"], part["tile"], part["disguise"]), ("Map_20401_1", [75, 31], 6))
             sid, name = B.GOGO_IDS[0x80], "sc_bc_gogo_80"
             layer = seed.file(B.MAP_REL.format(group="map_20401", folder="Map_20401", sub="Map_20401_1",
@@ -381,7 +543,7 @@ class Flags(unittest.TestCase):
         v = cap["opera"]["vars"]
         seed = Seed(f"{BASE} alasdraco", rom, capture=cap)
         try:
-            self.assertEqual(seed.data["alasdraco"]["cast"]["Maria"], v["maria"])
+            self.assertEqual(seed.part("alasdraco")["cast"]["Maria"], v["maria"])
             story = {}
             with open(os.path.join(seed.out, *L.MESSAGE_PATH.split("/"), "story_mes_en.txt"), encoding="utf-8") as f:
                 for line in f.read().splitlines():
@@ -438,7 +600,7 @@ class Flags(unittest.TestCase):
         import test_wc as W
         seed = Seed("worringtriad", bc_output("worringtriad", "worringtriad"))
         try:
-            part = seed.data["worringtriad"]
+            part = seed.part("worringtriad")
             self.assertEqual(part["party"], [7])                       # Celes
             self.assertEqual(part["levels"]["7"], 24)                  # BC's see-saw: Strago 24 / Mog 25 averaged, +0
             self.assertEqual(part["free"], 12)                         # Gau (commands randomized: BC's free character)

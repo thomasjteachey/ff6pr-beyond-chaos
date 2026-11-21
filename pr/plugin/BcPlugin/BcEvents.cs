@@ -86,6 +86,7 @@ namespace BeyondChaos.PR
 
         // tests (harness bcskipnaming): a script's naming screens pass with the default name (headless runs can't type)
         static bool SkipNaming;
+        static readonly Queue<string> RecentCalls = new Queue<string>();
 
         public static bool SystemCall_Prefix(MainCore mc, ref int __result)
         {
@@ -96,6 +97,11 @@ namespace BeyondChaos.PR
                 name = sv != null && sv.Length > 0 ? sv[0] : null;
             }
             catch { return true; }
+            if (name != null && mc.IsFirstClock())        // tests: the last few calls (bcev "calls [...]")
+            {
+                RecentCalls.Enqueue(name);
+                while (RecentCalls.Count > 6) RecentCalls.Dequeue();
+            }
             if (SkipNaming && name != null && name.StartsWith("名前入力："))
             {
                 __result = 0;
@@ -138,6 +144,13 @@ namespace BeyondChaos.PR
                         if (mc.IsFirstClock() && parts.Length > 1 && int.TryParse(parts[1], out var gil))
                             new OwnedItemClient().AddGil(gil);
                         break;
+                    case "raceover":  // BC:raceover KEY MODE: the race modes' end screen text, set live (time played, seed, flags)
+                        if (mc.IsFirstClock() && parts.Length > 2)
+                            GameText.Set(parts[1], RaceOverText(parts[2]));
+                        break;
+                    case "totitle":   // BC:totitle: back to the title, the game's own way (MainGame GotoTitle)
+                        if (mc.IsFirstClock()) ToTitle();
+                        break;
                     default:
                         Plugin.L.LogWarning($"[bc] events: unknown call {name}");
                         break;
@@ -145,6 +158,52 @@ namespace BeyondChaos.PR
             }
             catch (Exception e) { Hooks.WarnOnce("bc-syscall", e); }
             return false;
+        }
+
+        // The race modes' end (bc_events.race_end): BC rolls its credits; ours says the race is over, the time played and
+        // what BC's credits identify a run by (the seed and its flags), in pages that fit the message window
+        internal static string RaceOverText(string mode)
+        {
+            var nl = Environment.NewLine;
+            string why = mode == "dragonhunt" ? "All eight dragons have fallen." : "Kefka has fallen at Narshe.";
+            double secs = 0;
+            try { secs = UserDataManager.Instance()?.PlayTime ?? 0; } catch (Exception) { }
+            var t = TimeSpan.FromSeconds(secs);
+            var seed = BcSeeds.Active;
+            var pages = new List<string>
+            {
+                "The race is over!" + nl + why,
+                $"Time played: {(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}",
+            };
+            if (seed != null)
+            {
+                pages.Add($"Seed: {seed.SeedText}" + (string.IsNullOrEmpty(seed.Preset) ? "" : nl + $"Preset: {seed.Preset}"));
+                var lines = new List<string>();
+                var line = "Flags:";
+                foreach (var f in (seed.Flags ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (line.Length + 1 + f.Length > 40) { lines.Add(line); line = f; }
+                    else line += " " + f;
+                }
+                lines.Add(line);
+                for (int i = 0; i < lines.Count; i += 3) pages.Add(string.Join(nl, lines.Skip(i).Take(3)));
+            }
+            Note($"race over ({mode}): {(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}");
+            return string.Join("<P>" + nl, pages);
+        }
+
+        internal static void ToTitle()
+        {
+            var mg = UnityEngine.Object.FindObjectOfType<MainGame>();
+            var change = typeof(MainGame).GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)
+                .FirstOrDefault(m => m.Name == "ChangeState" && m.GetParameters().Length >= 1 && m.GetParameters()[0].ParameterType.IsEnum);
+            if (mg == null || change == null) { Plugin.L.LogWarning("[bc] events: no way back to the title (MainGame.ChangeState)"); return; }
+            var ps = change.GetParameters();
+            var args = new object[ps.Length];
+            args[0] = Enum.Parse(ps[0].ParameterType, "GotoTitle");
+            for (int i = 1; i < ps.Length; i++) args[i] = ps[i].HasDefaultValue ? ps[i].DefaultValue : null;
+            try { change.Invoke(mg, args); Note("race over: back to the title"); }
+            catch (Exception e) { Plugin.L.LogWarning($"[bc] events: back to the title: {e.InnerException?.Message ?? e.Message}"); }
         }
 
         // a character joins as the game's join calls do (JoinTina = JoinCharacter(1, -1, 1, true, false, false)), then is
@@ -294,6 +353,13 @@ namespace BeyondChaos.PR
             Harness.Register("bcevgen", EvGen, "bcevgen SEED FLAG...: make a Beyond Chaos seed with exactly these flags (normal mode), apply it");
             Harness.Register("bcmsg", a => a.Length < 1 ? "error: bcmsg KEY" : $"msg {a[0]} = {GameText.Get(a[0]) ?? "(none)"}",
                 "bcmsg KEY: a message's text as the game has it now (the seed's lines set live)");
+            Harness.Register("bccha", a =>
+            {
+                if (a.Length < 1) return "error: bccha KEY";
+                string who = null;
+                try { who = MessageManager.Instance?.GetSpeaker(a[0]); } catch (Exception) { }
+                return $"cha {a[0]} = {who ?? "(none)"}";
+            }, "bccha KEY: a story line's name box as the game has it now (story_cha, set live)");
             Harness.Register("bcskipnaming", a =>
             {
                 SkipNaming = a.Length > 0 && a[0] == "on";
@@ -392,7 +458,7 @@ namespace BeyondChaos.PR
             }
             catch (Exception e) { lores = $"; lores ? ({e.GetType().Name})"; }
             return $"events [{(r == null ? "no seed events" : string.Join(" ", flags))}]; map {udm?.CurrentMapId} cell {cell}; " +
-                   $"party {party}; owned [{owned}]; gil {udm?.OwendGil}; script {MapScripts.Current} busy {MapScripts.Busy}; shadow kept {ShadowKept}; last {Last}{lores}{battle}";
+                   $"party {party}; owned [{owned}]; gil {udm?.OwendGil}; script {MapScripts.Current} busy {MapScripts.Busy}; shadow kept {ShadowKept}; last {Last}; calls [{string.Join(" | ", RecentCalls)}]{lores}{battle}";
         }
     }
 }

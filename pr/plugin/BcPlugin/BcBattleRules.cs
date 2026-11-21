@@ -67,5 +67,23 @@ namespace BeyondChaos.PR
         // cursepower: the Cursed Shield's battle counter (the PR uncurses at 256) moved so this battle uncurses it
         // when it reaches BC's goal; else unchanged
         public static int CurseCounter(int counter, int goal) => goal > 0 && goal < 256 && counter + 1 >= goal && counter < 255 ? 255 : counter;
+
+        // --- the battle self-tests' fixture (BcSelfTests) ---------------------------------------------------
+
+        // Why a battle can't run a self-test any more (null: it can). BattlePlugManager.IsBattle() stays true on the
+        // victory screen (bc-5: 24 junction checks waited out 45 s each on WinResult), so the end judgment's result
+        // (BattleEndJugment.ResultType: 0 None, 1 Win, 2 Lose, 3 Escape...) and who is still standing say it too.
+        public static string BattleOver(bool inBattle, int endResult, int livingEnemies, int livingParty)
+        {
+            if (!inBattle) return "not in a battle";
+            if (endResult != 0) return $"the battle has ended (end judgment {endResult})";
+            if (livingEnemies <= 0) return "no living monster";
+            if (livingParty <= 0) return "no living party member";
+            return null;
+        }
+
+        // bckeep's party HP for the frame: topped up to 9999, except while a check holds HP (it set an HP of its
+        // own: a heal, a fall, Discordant's digit, Vampire's drain) or for a fallen member
+        public static int KeepAliveHp(int hp, bool held, int keep = 9999) => held || hp <= 0 || hp >= keep ? hp : keep;
     }
 }

@@ -127,12 +127,24 @@ def run(rom, seed, mode="normal", flags="", say=print, capture=None, prepare=Non
         try:
             with contextlib.redirect_stdout(out):
                 randomizer.randomize(application="web", infile_rom_buffer=inb, outfile_rom_buffer=outb,
-                                     seed=seed_string(seed, mode, flags))
+                                     seed=seed_string(seed, mode, flags), **BINGO)
         finally:
             skillrandomizer.CommandBlock.newname = original_newname
+        # bingoboingo's cards (BC writes bingo.<seed>.<n>.txt in its working folder, after the ROM and log are
+        # done): taken into capture["bingo"] for the seed folder, and the files removed
+        cards = []
+        for name in sorted(os.listdir(os.getcwd())):
+            path = os.path.join(os.getcwd(), name)
+            if name.startswith("bingo.") and name.endswith(".txt") and os.path.getmtime(path) >= t - 1:
+                with open(path, encoding="utf-8", errors="replace") as f:
+                    cards.append(f.read())
+                os.remove(path)
+        if capture is not None and cards:
+            capture["bingo"] = cards
         if capture is not None:
             capture["commands"] = {cid: {"name": text, "targeting": tgt, **describe(sub)}
                                    for cid, (text, sub, tgt) in sorted(named.items()) if cid is not None}
+            capture["flags"] = effective_flags(randomizer)
         text = out.getvalue()
         for line in text.splitlines():
             if line.startswith("{'ord'"):
@@ -145,6 +157,24 @@ def run(rom, seed, mode="normal", flags="", say=print, capture=None, prepare=Non
         return randomizer.outfile_rom_buffer.getvalue(), spoiler
     finally:
         os.chdir(cwd)
+
+
+# bingoboingo's card settings: BeyondChaos.exe asks for them (its GUI's BingoPrompts / console.py); web mode takes
+# them as randomize()'s keywords and has none of its own (bc_run passed none: `size ** 2` on None, audit gap #2).
+# These are the exe's defaults: every square type (the console's blank answer, "aims"), a 5x5 grid, Normal
+# difficulty (the GUI's preselected choice), one card. Read only by manage_bingo, after the ROM and log: no draws
+# of the seed change.
+BINGO = {"bingo_type": "aims", "bingo_size": 5, "bingo_difficulty": "n", "bingo_cards": 1}
+
+
+def effective_flags(randomizer):
+    """BC's flags as its own Options_ holds them after the run (read once BC is done: no draw changes): the typed
+    ones minus those the mode prohibits, plus the mode's forced flags (Dragon Hunt: worringtriad) and those BC turns
+    on itself (strangejourney -> notawaiter, makeover...), in BC's order and its codes ("name", or "name:value")."""
+    out = []
+    for f in randomizer.Options_.active_flags:
+        out.append(f.name if str(f.value).lower() == "true" else f"{f.name}:{f.value}")
+    return " ".join(out)
 
 
 def write_output(path, data):

@@ -171,6 +171,12 @@ class Ctx:
     def __init__(self, out, flags, rom=None, vanilla_rom=None, spoiler="", capture=None, log=print):
         self.out, self.rom, self.vanilla_rom, self.spoiler, self.log = out, rom, vanilla_rom, spoiler, log
         self.flags = {f.split(":")[0]: (f.split(":", 1)[1] if ":" in f else True) for f in flags.split()}
+        # BC CE 27de07a options.py (Options.activate_flags), after the mode's forced flags:
+        #     if self.is_flag_active('strangejourney'):
+        #         self.activate_flag('notawaiter', True)
+        # so a strangejourney seed is BC's notawaiter game too, though the flags string doesn't say so
+        if "strangejourney" in self.flags:
+            self.flags.setdefault("notawaiter", True)
         self.capture = capture or {}
         self.scripts, self.files, self.tables, self.lines = {}, {}, {}, []
         self.story = {}            # the PR's own story_mes_en lines this seed rewords (key -> text)
@@ -585,6 +591,75 @@ def prepare(capture):
         return out
     randomizer.manage_opera = manage_opera
 
+    # BC's always-on texts (randomizer.randomize: hints, poem, passwords): each recorded from BC's own call. ROM-free
+    # BC has no dialogue to read back, so the choices are taken as BC makes them (its random.choice results)
+    def recording(name, record):
+        real = getattr(randomizer, name)
+
+        def call(*a, **kw):
+            rng = utils.utilrandom
+            picks = []
+            choice = rng.choice
+
+            def chosen(seq):
+                x = choice(seq)
+                picks.append(x)
+                return x
+            rng.choice = chosen
+            try:
+                out = real(*a, **kw)
+            finally:
+                rng.choice = choice
+            record(out, picks)
+            return out
+        setattr(randomizer, name, call)
+
+    def texts():
+        return _CAPTURE.setdefault("texts", {})
+
+    def sprint(out, picks):
+        texts()["sprint_spell"] = randomizer.get_item(0xE6).features.get("learnspell")
+
+    def sabin(out, picks):
+        c = randomizer.get_character(0x05).battle_commands
+        texts()["sabin_command"] = c[1] if c[1] and c[1] != 0xFF else c[0]
+
+    def house_skill(out, picks):
+        word = str(out)
+        spell = None
+        if word.endswith("-"):
+            for i in range(256):
+                try:
+                    if randomizer.get_spell(i).name == word[:-1]:
+                        spell = i
+                        break
+                except Exception:  # noqa: BLE001
+                    continue
+        texts()["house"] = {"word": word, "spell": spell}
+
+    def poem(out, picks):
+        if picks:
+            texts()["poem"] = picks[-1][0]
+
+    def passwords(out, picks):
+        if len(picks) >= 3:
+            texts()["passwords"] = [str(x) for x in picks[-3:]]
+
+    recording("sprint_shoes_hint", sprint)
+    recording("sabin_hint", sabin)
+    import monsterrandomizer
+    real_house = monsterrandomizer.get_collapsing_house_help_skill
+
+    def house_help():
+        picks = []
+        out = real_house()
+        house_skill(out, picks)
+        return out
+    randomizer.get_collapsing_house_help_skill = house_help
+    monsterrandomizer.get_collapsing_house_help_skill = house_help
+    recording("randomize_poem", poem)
+    recording("randomize_passwords", passwords)
+
 
 _CAPTURE = {}
 
@@ -837,7 +912,21 @@ def wor_start(rom):
     return out
 
 
+# worringtriad skips the opening, whose last scene shows the seed's guide (plugin BcGuide.cs): a copy of the guide's
+# script (same name, sc_bc_guide) is listed in the World of Ruin's map (game map 2), and BcGuide runs it there the first
+# time the player has control, once per game. This step places the copy (the baseline's is Exit-only); the guide step
+# (tools/bc_guide.py write_in_game, which runs after this one) writes its content into every copy it finds in the seed.
+WOR_GUIDE = ("map_10020", "Map_10020", "Map_10020")
+WOR_GUIDE_REL = MAP_REL.format(group=WOR_GUIDE[0], folder=WOR_GUIDE[1], sub=WOR_GUIDE[2], file="sc_bc_guide.json")
+NEW_SCRIPTS["sc_bc_guide"] = WOR_GUIDE
+
+
+def place_wor_guide(ctx):
+    ctx.set_script("sc_bc_guide", empty_script("sc_bc_guide", "Beyond Chaos: the seed's guide (World of Ruin copy)"))
+
+
 def worringtriad(ctx):
+    place_wor_guide(ctx)
     import idmap
     start = wor_start(ctx.rom)
     sc = ctx.script(OPENING)
@@ -1063,9 +1152,9 @@ def recast(ctx, site, new):
 SPEAKER_NAMES = ["(TINA)", "(ROCK)", "(KAIEN)", "(SHADOW)", "(EDGAR)", "(MASH)", "(CELES)", "(STRAGUS)", "(RELM)",
                  "(SETZER)", "(MOG)", "(GAU)", "(GOGO)", "(UMARO)"]
 SPEAKERS = "story_cha_en"
-# PrKit's LiveData sets a seed's story_cha_<lang>.txt as name boxes only once the kit lead's edit lands; before that
-# it would set them as the lines' texts, so the seed doesn't write the file (the tests force it on)
-SPEAKERS_LIVE = False
+# PrKit's LiveData sets a seed's story_cha_<lang>.txt as name boxes (2026-11-21); a plugin older than that would set
+# them as the lines' texts. Off: the seed doesn't write the file.
+SPEAKERS_LIVE = True
 
 
 # (site, BC's character) -> {the site's line: the PR's line for the newcomer, or None: gone}. The Zone Eater's Gau
@@ -1141,6 +1230,7 @@ def gogo_spot(rom):
 # join (not its flag: the Zone Eater then holds Gau), else the PR's line for SNES 0xE5. Every candidate room has the
 # layer and script listed (empty in the baseline); a seed fills the chosen one.
 GOGO_FOUND = 2                     # ScenarioFlag4: Gogo found (mimetime)
+GUIDE_WOR_SHOWN = 3                # ScenarioFlag4: the seed's guide shown in the World of Ruin (worringtriad; BcGuide.cs)
 GOGO_LAYER = "ev_bc_gogo"
 GOGO_ENTITY = 900                  # his NPC's entity_id (its layer is ours alone)
 GOGO_WRONG = "E0044_00_061_a_01"   # the PR's line for SNES 0xE5 ("My work here is done! You're in my way. Move it!")
@@ -1376,9 +1466,169 @@ def speaker_keys():
     return sorted(keys)
 
 
+# BC's always-on texts (every seed, by BC's own rules: the hints by its flags, the poem and passwords always), in the
+# PR's lines: (key, how). BC's words where it changed the SNES line; the rest of the PR's line kept.
+SPRINT_KEY = "E0135_00_040_a_01"       # SNES 0xB8: the Sprint Shoes' owner (BC: which spell they teach)
+SABIN_KEY = "N005_C02_063_01_01"       # SNES 0xB9: Duncan's wife (BC: Sabin's command)
+HOUSE_KEY = "N002_C00_201_04_01"       # SNES 0x8A4: the collapsing house (BC: what its monsters do)
+POEM_KEY = "E0735_00_475_a_01"         # SNES 0x9FC: Cyan's poem at Mt. Zozo... the stone tablet's (BC: a random poem)
+PASSWORD_KEYS = ["E0075_00_060_c_01", "E0075_00_060_c_02", "E0075_00_060_c_03"]   # SNES 0xE0's three choices
+TEXT_KEYS = [SPRINT_KEY, SABIN_KEY, HOUSE_KEY, POEM_KEY] + PASSWORD_KEYS
+POEM_PAGE = "<WAIT1c><AUTO_P>"         # the PR poem's own page end (BC: 390 frames a page)
+
+
+def _plain(text):
+    return re.sub(r"<[^>]*>", "", text or "").strip()
+
+
+def _ability_name(snes_spell):
+    import idmap
+    pr = idmap.spell(snes_spell) if snes_spell is not None else None
+    if pr is None:
+        return None
+    names = {(r["type_id"], r["type_value"]): r["mes_id_name"] for r in P.Table("content")}
+    return _plain(P.messages("system", "en").get(names.get(("4", str(pr))), "")) or None
+
+
+def _command_name(ctx, snes_cmd):
+    import port
+    pr = port.SNES_CMD.get(snes_cmd)
+    if pr is None:
+        return None
+    row = ctx.table("command").rows.get(pr)
+    key = row["mes_id_name"] if row else f"MSG_CMD_NAME_{pr:02d}"
+    import seed_live as L
+    seed_text = {}
+    path = os.path.join(ctx.out, *L.MESSAGE_PATH.split("/"), "system_en.txt")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f.read().splitlines():
+                if "\t" in line:
+                    k, v = line.split("\t", 1)
+                    seed_text[k] = v
+    return _plain(seed_text.get(key) or P.messages("system", "en").get(key, "")) or None
+
+
+def _bc_poem(text):
+    """BC's poem (its <line>, page waits and <page>) as the PR writes a poem: centred lines, the PR's page end."""
+    pages = [p for p in re.split(r"<wait \d+ frames?>(?:<wait \d+ frames?>)*(?:<page>)?", text) if p.strip()]
+    out = []
+    for page in pages:
+        out.append("\\n".join("<CT>" + ln.strip() for ln in page.split("<line>") if ln.strip()) + POEM_PAGE)
+    return "\\n".join(out)
+
+
+def always_texts(ctx):
+    got = ctx.capture.get("texts") or {}
+    story = P.messages("story_mes", "en")
+    done = {}
+    spell = _ability_name(got.get("sprint_spell")) if "sprint_spell" in got else None
+    if spell and SPRINT_KEY in story:
+        first = story[SPRINT_KEY].split("<P>")[0]
+        done[SPRINT_KEY] = f"{first}<P>\\nThese teach me {spell}!"
+    command = _command_name(ctx, got["sabin_command"]) if "sabin_command" in got else None
+    if command and SABIN_KEY in story:
+        pages = story[SABIN_KEY].split("<P>\\n")
+        done[SABIN_KEY] = "<P>\\n".join(pages[:1] + [f"He is a master of the art of {command}."] + pages[1:])
+    house = got.get("house")
+    if house and HOUSE_KEY in story:
+        word = house["word"]
+        if word.endswith("-"):
+            name = _ability_name(house.get("spell")) or word[:-1]
+            word = name + "-"
+        done[HOUSE_KEY] = story[HOUSE_KEY].replace("petrifying", word + "ing", 1)
+    if got.get("poem") and POEM_KEY in story:
+        done[POEM_KEY] = _bc_poem(got["poem"])
+    if got.get("passwords") and all(k in story for k in PASSWORD_KEYS):
+        for k, pw in zip(PASSWORD_KEYS, got["passwords"]):
+            done[k] = f'"{pw}"'
+    ctx.story.update(done)
+    ctx.log(f"texts: {sorted(done)}")
+    return {"keys": sorted(done), "passwords": got.get("passwords"), "sprint": spell, "sabin": command,
+            "house": house["word"] if house else None}
+
+
+# --- katn (BC's mode "Race - Kefka @ Narshe": randomizer.randomize, Options_.mode.name == 'katn')
+# BC: start_with_random_espers (a call at CC/9AB6 to its code at 0x305000: `78 0E 78 0F`, then `86 <0x36 + esper>` per
+# esper, FE) and set_lete_river_encounters (the raft's random rolls always fight); the end at Kefka (the_end_comes_
+# beyond_katn) waits for the lead's choice. PR: the espers as GetItem in the opening's first script (not the title's
+# demo), the raft script's "no battle this time" branches (SetRandomValue MapLocalVariable 3, then 3 == 3 skips the
+# Encount) made Nops.
+KATN_ESPERS = 0x305000
+LETE_RIVER = "sc_e_0063_3"            # the raft ride (map 30380): CB/0486.. in BC's patch
+NARSHE_WON = "sc_e_0259_1"            # after Kefka at Narshe: [2] the battle's result, [3] lost -> 30, [4] won on
+SCRIPTS["mode:katn"] = [OPENING, LETE_RIVER, NARSHE_WON]
+
+# The race modes' end (katn: Kefka at Narshe; dragonhunt: the 8th dragon). BC rolls its credits (event command BB);
+# the PR's staff roll is built on the real ending's scenes, so ours is an end screen (the lead's choice, 2026-11-21;
+# the real ending is an audit gap item): the race-over line (its text set live by the plugin's BC:raceover: the time
+# played, the seed and its flags), then the title (BC:totitle: the game's own GotoTitle; a save loads from there, so
+# nothing traps the player).
+DRAGONS = {"sc_e_0734_1": 108, "sc_e_0779_1": 138, "sc_e_0809_1": 148, "sc_e_0879_1": 166, "sc_e_0889_1": 175,
+           "sc_e_0893_3": 178, "sc_e_0974_1": 220, "sc_e_0981_1": 225}      # each dragon's win sets its ScenarioFlag2
+SCRIPTS["mode:dragonhunt"] = sorted(DRAGONS)
+
+
+def race_end(ctx, mode):
+    keys = ctx.data.setdefault("race_end", {})
+    key = keys.get(mode) or keys.setdefault(mode, ctx.line(mode, "The race is over!"))
+    return [S.op("SysCall", s=[f"BC:raceover {key} {mode}"]), S.op("Msg", i=[0, 2], s=[key]),
+            S.op("SysCall", s=["BC:totitle"]), S.op("Exit")]
+
+
+def dragonhunt(ctx):
+    for name, flag in sorted(DRAGONS.items()):
+        sc = ctx.script(name)
+        ms = sc["Mnemonics"]
+        at = next(k for k, o in enumerate(ms) if o["mnemonic"] == "SetFlag" and o["operands"]["iValues"][0] == flag
+                  and o["operands"]["sValues"][0] == "ScenarioFlag2")
+        S.hook(sc, at + 1, "bc_dragonhunt_end", [_if("ScenarioFlag2", f, 0, "@vanilla") for f in sorted(DRAGONS.values())]
+               + race_end(ctx, "dragonhunt"))
+    ctx.log("dragonhunt: the 8th dragon ends the race (our end screen, then the title)")
+    return {"dragons": len(DRAGONS)}
+
+
+def katn_espers(rom):
+    """BC's starting espers (SNES esper ids) from its code at 0x305000, or [] when it isn't there."""
+    if rom is None or bytes(rom[KATN_ESPERS:KATN_ESPERS + 4]) != bytes([0x78, 0x0E, 0x78, 0x0F]):
+        return []
+    out, at = [], KATN_ESPERS + 4
+    while rom[at] == 0x86:
+        out.append(rom[at + 1] - 0x36)
+        at += 2
+    return out
+
+
+def katn(ctx):
+    import idmap
+    espers = katn_espers(ctx.rom)
+    contents = [idmap.esper_content(e) for e in espers if idmap.esper_content(e)]
+    if contents:
+        sc = ctx.script(OPENING)
+        ms = sc["Mnemonics"]
+        assert ms[2]["mnemonic"] == "Branch" and ms[2]["operands"]["iValues"][:2] == [7, 1], "the opening changed"
+        S.hook(sc, 2, "bc_katn_espers", [S.op("Branch", i=[7, 1, "@vanilla"], s=["MapLocalVariable", EQ, "imm"])] +
+               [S.op("GetItem", i=[cid, 1]) for cid in contents])
+    sc = ctx.script(LETE_RIVER)
+    ms = sc["Mnemonics"]
+    forced = 0
+    for k in range(1, len(ms)):
+        o, prev = ms[k], ms[k - 1]
+        if (o["mnemonic"] == "Branch" and o["operands"]["sValues"][0] == "MapLocalVariable" and
+                o["operands"]["iValues"][0] == 3 and prev["mnemonic"] == "SetRandomValue"):
+            ms[k] = S.op("Nop", label=o.get("label", ""), kind=o.get("type", 1))
+            forced += 1
+    sc = ctx.script(NARSHE_WON)
+    ms = sc["Mnemonics"]
+    assert ms[2]["operands"]["sValues"][0] == "戦闘結果取得" and ms[3]["mnemonic"] == "Branch", "Kefka at Narshe changed"
+    S.hook(sc, 4, "bc_katn_end", race_end(ctx, "katn"))
+    ctx.log(f"katn: {len(contents)} starting espers {espers}, {forced} Lete River rolls always fight, the end at Narshe")
+    return {"espers": espers, "lete_river": forced}
+
+
 def story_keys():
     """Every story_mes_en line a seed's events may reword (the baseline keeps them as the game has them)."""
-    return sorted(OPERA_LINES)
+    return sorted(set(OPERA_LINES) | set(TEXT_KEYS))
 
 
 def alasdraco(ctx):
@@ -1496,14 +1746,18 @@ def notawaiter(ctx):
 
 HANDLERS = {"lessfanatical": lessfanatical, "shadowstays": shadowstays, "j": j, "k": k, "regionofdoom": regionofdoom,
             "airship": airship, "worringtriad": worringtriad, "notawaiter": notawaiter, "r": r, "mimetime": mimetime,
-            "alasdraco": alasdraco}
+            "alasdraco": alasdraco, "texts": always_texts, "mode:katn": katn, "mode:dragonhunt": dragonhunt}
 
 
-def apply(out, flags, rom=None, vanilla_rom=None, spoiler="", capture=None, log=print):
-    """The seed's events into the packed seed folder `out`. Returns (files written (rels), bc_events.json)."""
+def apply(out, flags, rom=None, vanilla_rom=None, spoiler="", capture=None, log=print, mode="normal"):
+    """The seed's events into the packed seed folder `out`. Returns (files written (rels), bc_events.json).
+    mode: BC's mode (normal, katn, dragonhunt...): its own changes run after the flags'."""
     ctx = Ctx(out, flags, rom, vanilla_rom, spoiler, capture, log)
-    for flag in FLAGS:
-        if ctx.on(flag) and flag in HANDLERS:
+    ctx.mode = mode or "normal"
+    ctx.data["mode"] = ctx.mode
+    steps = ["texts"] + [f for f in FLAGS if ctx.on(f)] + ([f"mode:{ctx.mode}"] if f"mode:{ctx.mode}" in HANDLERS else [])
+    for flag in steps:
+        if flag in HANDLERS:
             keep = (copy.deepcopy(ctx.scripts), copy.deepcopy(ctx.files), len(ctx.lines), copy.deepcopy(ctx.tables),
                     dict(ctx.story), dict(ctx.speakers))
             try:

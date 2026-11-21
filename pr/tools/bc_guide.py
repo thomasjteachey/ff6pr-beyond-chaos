@@ -27,6 +27,8 @@ import kitpath  # noqa: E402,F401
 GUIDE_SCRIPT = "sc_bc_guide"
 GUIDE_GROUP, GUIDE_FOLDER, GUIDE_SUB = "map_20010", "Map_20010", "Map_20010"   # sc_e_0001_5's map (game map 3)
 GUIDE_REL = f"{GUIDE_GROUP}/Assets/GameAssets/Serial/Res/Map/{GUIDE_FOLDER}/{GUIDE_SUB}/{GUIDE_SCRIPT}.json"
+# the same script in another map's list (bc_events: worringtriad starts in the World of Ruin, game map 2)
+GUIDE_COPIES = [f"map_10020/Assets/GameAssets/Serial/Res/Map/Map_10020/Map_10020/{GUIDE_SCRIPT}.json"]
 GUIDE_KEY = "BC_GUIDE_{:02d}"     # its lines, in the seed's system_en (the game looks every message key up in one table)
 WINDOW = 200                      # characters a message page holds (the game's own lessons run to 250, wrapped)
 ROOM, SHORT = 250, 60             # ... at most, and a last page short enough to join the one before
@@ -115,6 +117,9 @@ def write_in_game(out, pages, info, mode_label="Normal", log=print):
         for n, t in enumerate(texts):
             f.write(f"{GUIDE_KEY.format(n)}\t{t}\r\n")
     write_script(os.path.join(out, "files", *GUIDE_REL.split("/")), len(texts))
+    for rel in GUIDE_COPIES:          # copies an earlier step placed in other maps (bc-events: worringtriad's WoR copy)
+        if os.path.exists(os.path.join(out, "files", *rel.split("/"))):
+            write_script(os.path.join(out, "files", *rel.split("/")), len(texts))
     log(f"bc guide in game: {len(texts)} messages, {sum(t.count('<P>') + 1 for t in texts)} windows")
     return GUIDE_REL, len(texts)
 
@@ -311,7 +316,29 @@ def for_seed(out, flag_string, info, flags_json_path, log=print):
                                if k in vmsg and k in msg and msg[k].strip() != vmsg[k].strip()}
     pages = build(flag_string, info, flags_json, names, rates, replaced, info.get("mode_label", "Normal"))
     pages += junction_pages(out)
+    pages += bingo_pages(out)
     log(f"bc guide: {len(pages)} pages")
+    return pages
+
+
+def bingo_pages(out):
+    """bingoboingo's cards (bc_seed writes them as bingo_<n>.txt in the seed folder, from BC's run): a page in the
+    game saying where they are, and each card itself on the Beyond Chaos screen (a 5x5 grid is too wide for the
+    game's text box)."""
+    import glob
+    cards = sorted(glob.glob(os.path.join(out, "bingo_*.txt")))
+    if not cards:
+        return []
+    names = [os.path.basename(c) for c in cards]
+    pages = [{"title": "Beyond Chaos Bingo",
+              "lines": [f"This seed comes with {len(cards)} bingo card{'s' if len(cards) > 1 else ''}: abilities, items,",
+                        "monsters and spells to use, find or beat, each worth points.",
+                        "The card is on the Beyond Chaos screen (title screen) and in",
+                        f"the seed's folder: {', '.join(names)}."]}]
+    for c in cards:
+        with open(c, encoding="utf-8", errors="replace") as f:
+            lines = [ln.rstrip() for ln in f.read().splitlines()]
+        pages.append({"title": f"Bingo card ({os.path.basename(c)})", "lines": lines, "screen": True})
     return pages
 
 

@@ -3,11 +3,16 @@ zip (kit.py package bc), with no Magicite folder, none of the game's files and n
 must make them from the game at its first start (bc_gamedata.py setup) and make seeds with its bundled Python,
 ROM-free. Built on tools/bc_testinstall.py (which holds BNW and WC aside and puts everything back).
 
+Inside a test batch: when the batch's own BC test install (bc_testinstall install: BC's development layout) is in
+place, `install` restores it first and notes so (BepInEx/bc_playertest.json); `restore` then puts the development
+install back, so the batch's later BC steps find what they expect. Nothing to do before or after it in a request.
+
   .venv/Scripts/python tools/bc_playertest.py install [ZIP]   # the game closed; ZIP: build/dist/BeyondChaos-PR*.zip
   .venv/Scripts/python tools/bc_playertest.py restore         # = bc_testinstall restore, the bundle's generator removed
   .venv/Scripts/python tools/bc_playertest.py status
 """
 import glob
+import json
 import os
 import shutil
 import sys
@@ -20,6 +25,7 @@ import kitpath  # noqa: E402,F401
 import bc_testinstall as T  # noqa: E402
 
 LEFT_OUT = ["generator/vanilla", "generator/cache", "baseline/files", "baseline/vanilla_data"]   # = modkit.json
+NOTE = "bc_playertest.json"          # BepInEx/: {"dev_install_before": bool}, while a player install is in place
 
 
 def latest_zip():
@@ -32,6 +38,15 @@ def latest_zip():
 def install(zip_path=None):
     zip_path = zip_path or latest_zip()
     g = T.game()
+    note = os.path.join(g.bepinex, NOTE)
+    if os.path.exists(note):
+        raise SystemExit(f"a player install is already in place ({note}): restore first")
+    dev_before = os.path.exists(os.path.join(g.bepinex, T.STATE))
+    if dev_before:
+        print("the batch's BC test install is in place: restored first (put back by `restore`)")
+        T.restore()
+    with open(note, "w", encoding="utf-8") as f:
+        json.dump({"dev_install_before": dev_before}, f)
     T.install()                          # BNW/WC held aside, BC's dev layout in place: now made a player's
     data = os.path.join(g.bepinex, T.MOD)
     mg = os.path.join(g.magicite_dir, T.MOD)
@@ -62,9 +77,21 @@ def install(zip_path=None):
 
 def restore():
     g = T.game()
+    note = os.path.join(g.bepinex, NOTE)
+    dev_before = False
+    if os.path.exists(note):
+        try:
+            dev_before = bool(json.load(open(note, encoding="utf-8")).get("dev_install_before"))
+        except (OSError, ValueError):
+            pass
     T.restore()
     shutil.rmtree(os.path.join(g.bepinex, T.MOD, "generator"), ignore_errors=True)
     print("the bundle's generator removed (seeds stay in BepInEx/BeyondChaos/seeds)")
+    if os.path.exists(note):
+        os.remove(note)
+    if dev_before:
+        T.install()
+        print("the batch's BC test install put back, as it was before the player install")
 
 
 def status():

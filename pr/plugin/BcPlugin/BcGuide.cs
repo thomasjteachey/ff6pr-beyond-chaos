@@ -32,8 +32,33 @@ namespace BeyondChaos.PR
             catch (Exception) { return false; }
         }
 
+        // worringtriad skips the opening (its controls tutorial never plays): the guide shows the first time the
+        // player has control in the World of Ruin's map (game map 2, where bc_events lists a copy of the script),
+        // once per game (our ScenarioFlag4 3, saved with the game; bc_events.GUIDE_WOR_SHOWN)
+        const int WorMap = 2, WorShownFlag = 3;
+        static float worIdle = -1;
+        const float WorSettle = 1f;            // no script for this long on the map: the player has control
+
+        static void UpdateWor()
+        {
+            if (!Wanted || !BcEvents.On("worringtriad") || MapScripts.MapId != WorMap || MapScripts.Busy || HelpOpen())
+            {
+                worIdle = -1;
+                return;
+            }
+            var ds = global::Last.Interpreter.DataStorage.Instance;
+            if (ds == null || ds.Get(global::Last.Interpreter.DataStorage.Category.kScenarioFlag4, WorShownFlag) != 0) return;
+            if (worIdle < 0) { worIdle = Time.realtimeSinceStartup; return; }
+            if (Time.realtimeSinceStartup - worIdle < WorSettle) return;
+            worIdle = -1;
+            ds.Set(global::Last.Interpreter.DataStorage.Category.kScenarioFlag4, WorShownFlag, 1);
+            Note("worringtriad: the World of Ruin's first moment of control");
+            Start();
+        }
+
         internal static void Update()
         {
+            if (step == Step.Idle) UpdateWor();
             switch (step)
             {
                 case Step.Idle:

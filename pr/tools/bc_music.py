@@ -105,21 +105,71 @@ MAP_PAIRS_FILE = "bc_music_maps.json"    # the generator bundle's copy of the SN
 
 
 def map_pairs():
-    """{SNES map id (str): [{"pr_id": PR map id}, ...]}: data/snes_pr_maps.json (tools/snes_maps.py), or the
-    generator bundle's compact copy beside this file."""
-    for path, compact in ((os.path.join(HERE, MAP_PAIRS_FILE), True), (os.path.join(ROOT, "data", "snes_pr_maps.json"), False)):
-        if os.path.exists(path):
-            d = json.load(open(path, encoding="utf-8"))
-            return {k: [{"pr_id": i} for i in v] for k, v in d.items()} if compact else d["maps"]
-    return None
+    """{SNES map id (str): [{"pr_id": PR map id, "cross", "how", "coverage"}, ...]}: tools/snes_maps.py's
+    table (data/snes_pr_maps.json with its hand-confirmed pairs first; less its lookalikes: a tiles/layout pair
+    whose PR room is another place's, like Mobliz's inn on Thamasa's, or another room of the same basement), or the
+    generator bundle's compact
+    copy beside this file ([pr_id, cross, how, coverage] per pair; older copies' bare ids or manual flag still read)."""
+    path = os.path.join(HERE, MAP_PAIRS_FILE)
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+        out = {}
+        for k, v in d.items():
+            out[k] = [{"pr_id": e} if isinstance(e, int) else
+                      {"pr_id": e[0], "cross": bool(e[1]), "coverage": e[3],
+                       "how": e[2] if isinstance(e[2], str) else ("manual" if e[2] else "")}
+                      for e in v]
+        return out
+    if not os.path.exists(os.path.join(ROOT, "data", "snes_pr_maps.json")):
+        return None
+    import snes_maps as SM
+    return {str(m): [dict(mt._asdict()) for mt in ms if mt.pr_id is not None and not getattr(mt, "lookalike", False)]
+            for m, ms in SM.table().items()}
+
+
+# how surely a pair is right, by how snes_maps found it (data/snes_pr_maps.json "_source"): hand-confirmed; by chest
+# contents or by following exits; by vanilla's doors from a pair; by the layouts alone (many interiors share one); an
+# event copy of another map's layout
+HOW_RANK = {"manual": 0, "chests": 1, "exits": 1, "door": 2, "door-in": 2, "tiles": 3, "layout": 4}
+
+
+def pair_rank(e):
+    """How surely a PR map is this SNES map's room, for a PR map two SNES maps share (lower first): by how the pair
+    was found (HOW_RANK), then by how much of the room matched."""
+    return (HOW_RANK.get(e.get("how"), 5), -(e.get("coverage") or 0.0))
+
+
+def same_world(cands):
+    """A PR map's pairs [(rank, SNES map, entry)] less its cross pairs (snes_maps' "cross": the SNES map one world's
+    alone, the PR map the other's alone, as each side's nearest world map by doors says) that a pair of the PR map's
+    own world, found structurally (hand-confirmed, chests, exits, doors) and at least as surely, outweighs. The world
+    tag is a hint (the airship isn't a door; Figaro Castle's basement is nearest the World of Ruin by its cave, though
+    both worlds use it), so cross pairs stay when the PR map's only same-world pairs are lookalike layouts (the
+    World of Balance basement, like its World of Ruin twin, takes BC's basement song); World of Ruin Mobliz and
+    Kohlingen, paired by exits with both SNES towns, take only the World of Ruin town's (seed 1234567890: BC changed
+    only the World of Balance towns')."""
+    same = [c[0][0] for c in cands if not c[2].get("cross")]
+    if not same or min(same) >= HOW_RANK["tiles"]:     # lookalike layouts never outweigh a pair
+        return cands
+    best = min(same)
+    return [c for c in cands if not c[2].get("cross") or c[0][0] < best]
 
 
 def bundle_data(tools_dir):
     """For tools/bc_bundle.py: the map pairs bc_music needs, compact, into the generator's tools/; and FF6's
     resident waveforms into the generator's data/ (from the developer's ROM; the user may ship them)."""
     pairs = map_pairs() or {}
+    compact = {}
+    for k, v in pairs.items():
+        best = {}
+        for e in v:    # one entry per PR map: its best pair (a SNES map can list a PR map at two offsets)
+            if e["pr_id"] not in best or pair_rank(e) < pair_rank(best[e["pr_id"]]):
+                best[e["pr_id"]] = e
+        compact[k] = [[i, int(bool(e.get("cross"))), e.get("how") or "", round(e.get("coverage") or 0.0, 3)]
+                      for i, e in sorted(best.items())]
     with open(os.path.join(tools_dir, MAP_PAIRS_FILE), "w", encoding="utf-8") as f:
-        json.dump({k: sorted({e["pr_id"] for e in v}) for k, v in pairs.items()}, f, separators=(",", ":"))
+        json.dump(compact, f, separators=(",", ":"))
     res = resident_source()
     if isinstance(res, dict):
         data = os.path.join(os.path.dirname(tools_dir), "data")
@@ -136,39 +186,98 @@ def map_overrides(vanilla, rom, log=None):
         _say(log, "music: no SNES -> PR map pairs (data/snes_pr_maps.json): no area songs")
         return {}
     import prdata as P
-    bgm = {}
+    bgm, names = {}, {}
     try:
-        for r in csv.DictReader(open(os.path.join(P.VANILLA, "master", "Assets", "GameAssets", "Serial", "Data",
-                                                  "Master", "map.csv"), encoding="utf-8")):
-            bgm[int(r["id"])] = int(r["bgm_id"] or 0)
+        with open(os.path.join(P.VANILLA, "master", "Assets", "GameAssets", "Serial", "Data", "Master", "map.csv"),
+                  encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                bgm[int(r["id"])] = int(r["bgm_id"] or 0)
+                names[int(r["id"])] = r["map_name"]
     except OSError:
         pass
-    out = {}
+    # a PR map two SNES maps share (a town's two worlds, rooms the PR merged, lookalike layouts) plays the song of
+    # the SNES map that is surest its room (pair_rank), among those BC changed, leaving out the cross-world pairs a
+    # same-world pair outweighs (same_world)
+    by_pr = {}
     for sm, lst in pairs.items():
-        sm = int(sm)
-        a = MAP_SONGS + sm * MAP_SIZE
-        if a >= len(vanilla) or a >= len(rom):
-            continue
-        vs, bs = vanilla[a], rom[a]
-        if sm in EVENT_MAPS and rom[a] == EVENT_MAPS[sm][0]:
-            vs, bs = EVENT_MAPS[sm]
-        if vs == bs:
-            continue
-        frm = set()
-        if vs in SS.FF6_SONG_PR_BGM:
-            frm.add(SS.FF6_SONG_PR_BGM[vs])
         for e in lst:
-            pid = e["pr_id"]
-            f = set(frm)
+            by_pr.setdefault(e["pr_id"], []).append((pair_rank(e), int(sm), e))
+    out = {}
+    for pid, cands in sorted(by_pr.items()):
+        cands = same_world(cands)
+        got = []
+        for rank, sm, e in sorted(cands, key=lambda c: (c[0], c[1])):
+            a = MAP_SONGS + sm * MAP_SIZE
+            if a >= len(vanilla) or a >= len(rom):
+                continue
+            vs, bs = vanilla[a], rom[a]
+            if sm in EVENT_MAPS and rom[a] == EVENT_MAPS[sm][0]:
+                vs, bs = EVENT_MAPS[sm]
+            if vs == bs:
+                continue
+            f = set()
+            if vs in SS.FF6_SONG_PR_BGM:
+                f.add(SS.FF6_SONG_PR_BGM[vs])
             if bgm.get(pid):
                 f.add(bgm[pid])
-            if not f:
-                continue
-            prev = out.get(pid)
-            if prev and prev["slot"] != (bs or -1):
-                _say(log, f"music: PR map {pid} has SNES maps with songs {prev['slot']:#x} and {bs:#x}; the first kept")
-                continue
-            out[pid] = {"from": sorted(f | set(prev["from"] if prev else [])), "slot": bs or -1, "snes_map": sm}
+            if f:
+                got.append((sm, bs or -1, f))
+        if not got:
+            continue
+        sm, slot, f = got[0]
+        for sm2, slot2, f2 in got[1:]:
+            if slot2 == slot:
+                f |= f2
+            else:
+                _say(log, f"music: PR map {pid} is SNES maps {sm:#x} (slot {slot:#x}) and {sm2:#x} (slot {slot2:#x}); "
+                          f"{sm:#x}'s kept (its pair is surer)")
+        out[pid] = {"from": sorted(f), "slot": slot, "snes_map": sm}
+    return inherit_kept(out, by_pr, vanilla, rom, bgm, names, door_graph(), log)
+
+
+def door_graph():
+    """{PR map name: {PR maps its vanilla doors lead to or come from}}: the entrance index's copy (bc_entrances, in
+    the generator bundle too); None without it."""
+    try:
+        import bc_entrances
+        return bc_entrances.graph_of(bc_entrances.load_index())
+    except Exception:  # noqa: BLE001 - no index: no inherited area songs
+        return None
+
+
+def inherit_kept(out, by_pr, vanilla, rom, bgm, names, graph, log=None):
+    """The area songs `out` plus the rooms that keep them: on the SNES a map whose song is 0 keeps the song that
+    plays (Mobliz's houses keep BC's town song), while the PR's room names its track again (Map_20111_4: the town's
+    21) and the game asks for it, so without a rule of its own it would play the game's track. A PR room with no
+    rule, a track of its own (not 0: the PR keeps the song itself), and real SNES pairs that all keep the song in
+    BC's game too, takes the rule of the rooms its doors join that play that track as an area song, when they agree
+    on one slot (to a fixed point: a house's back room too)."""
+    if not graph:
+        return out
+    ids = {n: i for i, n in names.items()}
+
+    def keeps(cands):
+        for _, sm, _ in cands:
+            a = MAP_SONGS + sm * MAP_SIZE
+            if a >= len(vanilla) or a >= len(rom) or vanilla[a] != 0 or rom[a] != 0:
+                return False
+        return bool(cands)
+    kept = {pid for pid, cands in by_pr.items() if pid not in out and bgm.get(pid) and keeps(cands)}
+    added = 0
+    while True:
+        new = {}
+        for pid in kept - set(out):
+            b = bgm[pid]
+            slots = {out[n]["slot"] for n in (ids.get(x) for x in graph.get(names.get(pid), ())) if n in out and b in out[n]["from"]}
+            if len(slots) == 1:
+                src = next(n for n in (ids.get(x) for x in graph.get(names.get(pid), ())) if n in out and b in out[n]["from"])
+                new[pid] = {"from": [b], "slot": slots.pop(), "snes_map": out[src].get("snes_map"), "kept_from": src}
+        if not new:
+            break
+        out.update(new)
+        added += len(new)
+    if added:
+        _say(log, f"music: {added} PR rooms keep their area's song (SNES song 0: the song that plays)")
     return out
 
 

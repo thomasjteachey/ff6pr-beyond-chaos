@@ -29,9 +29,11 @@ namespace BeyondChaos.PR
             public string Name;
             public Action Start;
             public Func<string> Check;
+            public Action Finish;     // run once when the test has its result, however it got it (answer, time-out, throw)
             public float Timeout = 40;
             internal float Began;
             internal string Result;
+            internal bool Finished;
         }
 
         internal sealed class Act
@@ -49,10 +51,81 @@ namespace BeyondChaos.PR
         static bool logging, hooked;
         static List<Test> run;
 
-        internal static void Add(string name, Func<string> check, Action start = null, float timeout = 40)
+        internal static void Add(string name, Func<string> check, Action start = null, float timeout = 40, Action finish = null)
         {
             tests.RemoveAll(t => t.Name == name);
-            tests.Add(new Test { Name = name, Check = check, Start = start, Timeout = timeout });
+            tests.Add(new Test { Name = name, Check = check, Start = start, Timeout = timeout, Finish = finish });
+        }
+
+        static void Done(Test t, string result)
+        {
+            t.Result = result;
+            FinishOnce(t);
+        }
+
+        static void FinishOnce(Test t)
+        {
+            if (t.Finished) return;
+            t.Finished = true;
+            try { t.Finish?.Invoke(); }
+            catch (Exception e) { Hooks.WarnOnce("bc-selftest-finish-" + t.Name, e); }
+        }
+
+        // --- the battle the tests run in ------------------------------------------------------------------
+
+        // null while the battle can run a test, else why not (IsBattle() alone stays true on the victory screen)
+        internal static string Over()
+        {
+            var bm = BattlePlugManager.Instance();
+            bool inBattle = bm != null && bm.IsBattle();
+            int end = 0, party = 0;
+            if (inBattle)
+            {
+                try { end = (int)bm.BattleEndJugment.GetEndJugment(); } catch (Exception) { }
+                try { party = (bm.GetPlayerUnits() ?? new BattlePlayerData[0]).Count(p => p != null && p.BattleUnitDataInfo?.Parameter?.CurrentHP > 0); }
+                catch (Exception) { }
+            }
+            return BcBattleRules.BattleOver(inBattle, end, inBattle ? LivingEnemies().Count : 0, party);
+        }
+
+        // The battle's end held off while the tests run (BattleEndJugment.SetEnabled(false), as the kit's AI host does
+        // while monsters are made): the PR declares a Win whenever the battle's script isn't running
+        // (BattleEndJugment.Execute: Integrator.IsMainCoreAlive false -> result 1; tools/decomp/battle_end), and a
+        // harness-started battle sometimes has none (bc-5 bc-selftest-2 and bc-battle-2: won at the first act with
+        // every monster at full HP). Put back when the run is done.
+        static bool holding;
+
+        static void Hold(bool on)
+        {
+            holding = on;
+            try { BattlePlugManager.Instance()?.BattleEndJugment?.SetEnabled(!on); }
+            catch (Exception e) { Hooks.WarnOnce("bc-selftest-hold", e); }
+        }
+
+        // per frame (BcHarness.Update): the hold kept (another hook may enable the judgment again)
+        internal static void Update()
+        {
+            if (!holding) return;
+            try
+            {
+                var bm = BattlePlugManager.Instance();
+                if (bm == null || !bm.IsBattle()) { holding = false; return; }
+                var j = bm.BattleEndJugment;
+                if (j != null && j.GetEnabled()) j.SetEnabled(false);
+            }
+            catch (Exception e) { Hooks.WarnOnce("bc-selftest-hold-update", e); }
+        }
+
+        // the battle's own script (sc_b_0239 for most parties: the monsters' AI and the end of the battle)
+        static string BattleScript()
+        {
+            try
+            {
+                var integ = Last.Interpreter.Integrator.Instance;
+                return integ != null && integ.IsMainCoreAlive() ? $"battle script {integ.scriptName} running"
+                                                                : "no battle script running (the game would end this battle at the first act: the end is held while the tests run)";
+            }
+            catch (Exception) { return "battle script ?"; }   // (no exception name: test runners grep for those)
         }
 
         // the harness command and the battle features' tests (BcHarness.Register calls this)
@@ -115,22 +188,25 @@ namespace BeyondChaos.PR
             {
                 var bm = BattlePlugManager.Instance();
                 if (bm == null || !bm.IsBattle()) return "error: not in a battle";
+                var over = Over();
+                if (over != null) return $"error: the battle can't run the tests: {over}";
                 if (BcSeeds.Active == null) return "error: no Beyond Chaos seed active (bcapply <id>)";
                 Hook();
                 // filter: words separated by commas; a test runs if its name holds one of the plain words (none:
                 // every test) and none of the words starting with "!" ("commands,items" / "!junction")
-var filter = a.Length > 1 ? string.Join(" ", a.Skip(1)) : "";
+                var filter = a.Length > 1 ? string.Join(" ", a.Skip(1)) : "";
                 run = tests.Where(t => BcBattleRules.FilterMatches(t.Name, filter)).ToList();
                 if (run.Count == 0) return $"error: no self-test matches '{filter}'";
                 Acts.Clear();
                 logging = true;
-                foreach (var t in run) { t.Result = null; t.Began = -1; }
-                Kit.Info($"[bc selftest] {run.Count} tests: {string.Join(", ", run.Select(t => t.Name))}");
-                return $"bcselftest started: {run.Count} tests";
+                foreach (var t in run) { t.Result = null; t.Began = -1; t.Finished = false; }
+                var script = BattleScript();
+                Hold(true);
+                Kit.Info($"[bc selftest] {run.Count} tests ({script}): {string.Join(", ", run.Select(t => t.Name))}");
+                return $"bcselftest started: {run.Count} tests; {script}";
             }
             if (run == null) return "error: bcselftest start first";
-            var battle = BattlePlugManager.Instance();
-            bool inBattle = battle != null && battle.IsBattle();
+            var ended = Over();
             // the tests with no Start answer first, whatever their order; then one test with a Start at a time
             // (their acts don't mix), so a slow battle check never holds up an instant one
             foreach (var t in run.Where(x => x.Start == null).Concat(run.Where(x => x.Start != null)))
@@ -138,28 +214,79 @@ var filter = a.Length > 1 ? string.Join(" ", a.Skip(1)) : "";
                 if (t.Result != null) continue;
                 if (t.Began < 0)
                 {
-                    if (!inBattle) { t.Result = "FAILED: the battle ended before it started"; continue; }
+                    if (ended != null) { Done(t, $"FAILED: the battle ended before it started ({ended})"); continue; }
                     if (t.Start != null && run.Any(o => o != t && o.Began >= 0 && o.Result == null && o.Start != null)) break;
                     t.Began = now;
                     try { t.Start?.Invoke(); }
-                    catch (Exception e) { t.Result = $"FAILED: start: {e.GetType().Name}: {e.Message}"; Kit.Info($"[bc selftest] {t.Name}: {t.Result}"); continue; }
+                    catch (Exception e) { Done(t, $"FAILED: start: {e.GetType().Name}: {e.Message}"); Kit.Info($"[bc selftest] {t.Name}: {t.Result}"); continue; }
                 }
                 string line;
                 try { line = t.Check(); }
                 catch (Exception e) { line = $"FAILED: {e.GetType().Name}: {e.Message} at {(e.StackTrace ?? "").Split((char)10).FirstOrDefault()?.Trim()}"; }
                 if (line == null && now - t.Began > t.Timeout) line = $"FAILED: no answer in {t.Timeout:0} s";
-                if (line == null && !inBattle) line = "FAILED: the battle ended first";
+                if (line == null && ended != null) line = $"FAILED: the battle ended first ({ended})";
                 if (line == null) { if (t.Start != null) break; continue; }
-                t.Result = line;
+                Done(t, line);
                 Kit.Info($"[bc selftest] {t.Name}: {line}");
             }
             var waiting = run.Where(t => t.Result == null).ToList();
             if (waiting.Count > 0)
                 return $"bcselftest running: {run.Count - waiting.Count} of {run.Count} answered; now {waiting[0].Name}";
             logging = false;
+            if (holding) Hold(false);
             int failed = run.Count(t => !t.Result.StartsWith("ok"));
             return $"bcselftest done: {run.Count - failed} passed, {failed} failed; " +
                    string.Join("; ", run.Select(t => $"{t.Name}: {t.Result}"));
+        }
+
+        // --- on the kit's self-test runner (PrKit/SelfTests.cs; BcChecks' `selftest`) -----------------------------
+        // Every registered test is also the kit runner's `bc.battle.<name>` (Needs "battle"): the same Start and Check,
+        // run one at a time (`selftest bc.battle.*`, or one by name). `bcselftest` above stays for one more test batch
+        // (the BC lead's plan, 2026-11-21), then goes.
+        internal const string KitPrefix = "bc.battle.";
+
+        internal static IEnumerable<SelfTests.Entry> KitEntries()
+        {
+            var body = typeof(BcSelfTests).GetMethod(nameof(KitTest), System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            foreach (var t in tests)
+                yield return new SelfTests.Entry
+                {
+                    Name = KitPrefix + t.Name,
+                    Info = new SelfTestAttribute(KitPrefix + t.Name) { Needs = "battle", Timeout = t.Timeout + 150, Doc = "BC battle self-test" },
+                    Method = body,
+                };
+        }
+
+        static IEnumerable<TestStep> KitTest(TestContext ctx)
+        {
+            var t = tests.FirstOrDefault(x => KitPrefix + x.Name == ctx.Name);
+            if (!ctx.Check(t != null, "registered") || !ctx.Check(BcSeeds.Active != null, "a Beyond Chaos seed active")) yield break;
+            var over = Over();
+            if (!ctx.Check(over == null, over ?? "the battle can run it")) yield break;
+            Hook();
+            logging = true;
+            t.Finished = false;
+            Hold(true);     // kept after the test: the kit runs the next one at once (bcselftest's done puts it back)
+            try
+            {
+                if (t.Start != null)
+                {
+                    string bad = null;
+                    try { t.Start(); }
+                    catch (Exception e) { bad = $"start: {e.GetType().Name}: {e.Message}"; }
+                    if (bad != null) { ctx.Check(false, bad); yield break; }
+                }
+                string line = null, ended = null;
+                yield return ctx.Until(() =>
+                {
+                    try { line = t.Check(); }
+                    catch (Exception e) { line = $"FAILED: {e.GetType().Name}: {e.Message}"; }
+                    ended = Over();
+                    return line != null || ended != null;
+                }, t.Timeout, t.Name);
+                ctx.Check(line != null && line.StartsWith("ok"), line ?? $"the battle ended first ({ended})");
+            }
+            finally { FinishOnce(t); }
         }
 
         // --- helpers for tests ------------------------------------------------------------------------

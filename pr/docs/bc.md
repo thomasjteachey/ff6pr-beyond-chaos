@@ -4,6 +4,10 @@ Owner: BC lead. Moved verbatim from `pr/PORTING.md` on 2026-11-20 (roadmap item 
 
 ## Status
 
+**By the source audit (2026-11-21, pr/docs/bc-audit.md section 5): each area's figure below is its audited
+features (tested 1, ported 0.8, partial 0.4, missing 0); feature-weighted the port is 57.7%. Earlier figures were
+estimates.**
+
 **Beyond Chaos, weighted** (2026-11-20, a mod of its own on the kit and WC's base; plan in
 "Beyond Chaos port" below; Normal mode first, the cave modes and `d` later. Re-measured the same day by
 the BC lead against every flag in `plugin/BcPlugin/bc_flags.json` (20 yes, 11 partly, 82 no, 2 n/a): rows
@@ -11,23 +15,75 @@ added for BC's junction effects and the cave modes, more events counted; owners 
 
 | Area | Weight | Done | Points | Owner |
 |---|---|---|---|---|
-| Seeds in game: options screen (BC's flags, codes and modes), generator (BC's own code, ROM-free, a seed = BC's exe's), live apply, saves keep their seed (2026-11-20: all but ROM-free and the player's bundle; checked headless in game) | 15 | 94% | 14.1 | bc-seeds |
-| Randomized data through the porter: characters, commands, espers, items, shops, chests, monsters, formations, encounters, Colosseum, Slots, dances, MagiTek; left: the partly-ported data flags (b, g, i, o, t, bsiab), y, alphalores, cursepower, dancingmaduin, fightclub, and WC's plugin features BC's data needs (natural magic, esper bonuses, Coliseum, rages, steal) moved into the kit | 25 | 92% | 23 | bc-seeds |
-| Custom commands (`w`): R-/W-/X-/9x commands, combos, R-Limit, R-Chaos, allcombos, nocombos, endless9, replaceeverything, metronome, suplexwrecks, desperation (2026-11-20: all as PR command rows, random ones on the PR's random-ability function, Random Ice seen working in a battle; repeats and combos in the plugin, their battle test pending) | 12 | 85% | 10.2 | bc-battle |
-| Item specials: procs, breaks, relic bits; MBlock; collateraldamage, electricboogaloo, nobreaks, unbreakable, masseffect, darkworld (2026-11-20: the porter carries BC's weapon effects; each "?" item's description says what changed; left: MBlock, 7 armor procs, 3 relic bits, the break codes) | 6 | 80% | 4.8 | bc-battle |
-| Names and explanations in the PR's own words (no SNES abbreviations; 2026-11-20: items, skills and commands in the PR's words, all fitting the game's boxes; a per-seed guide for newcomers, on the BC screen and in game right after the opening's controls tutorial (`BcGuide.cs`: sc_bc_guide on Map_20010 when the field help closes; the game's message window, a Yes/No question then a page a topic); built and offline-tested, its in-game check queued: bc-guide-1; BC's new character names through the porter's new `character_names` option (port_names.port_character_names: MSG_CHAR_NAME_01..14; New Player renames all 14: Terra is "Kei"), its monster names through `monster_names`, both switched on in bc_seed.py by bc-seeds; a "Who's who" guide page ("Kei is Terra (looks like ...)"); left: the Coral key item's rename) | 4 | 95% | 3.8 | BC lead |
-| About 30 small codes that are plugin code (swdtechspeed, norng, playsitself, dearestmolulu, levelcap, mementomori, naturalstats, supernatural, informativemiss, magicnumbers, mpparty, equipanything, espercutegf, l, u, ...) (2026-11-20: the boosts (data), dancelessons, esper bonuses for `e`) | 8 | 90% | 7.2 | bc-battle |
-| Junction effects: espffect, effectmas, effectory, effectster, treaffect, jejentojori (BC's `bcg_junction.py`, ~57 SNES assembly patches, each a battle effect, as plugin code) | 8 | 85% | 6.8 | bc-junction |
-| Light events: worringtriad, r, h, notawaiter, lessfanatical, regionofdoom, mimetime, rushforpower, airship, shadowstays, j, k (on the kit's SNES event translator; 2026-11-20: j, k, lessfanatical, regionofdoom, shadowstays done offline, their in-game test queued) | 8 | 75% | 6 | bc-events |
-| Sprites: makeover (characters, its sprite categories, cloneparty, partyparty, quikdraw, kupokupo, bravenudeworld), remonsterate (monsters), palettes (c, p, n), s | 10 | 80% | 8 | bc-sprites |
-| Music: johnnydmad, johnnyachaotic (an SNES sound chip and FF6's driver in the plugin, streamed over the game's track); alasdraco (the opera) later | 10 | 70% | 7 | bc-music |
+| Seeds in game: options screen (BC's flags, codes and modes), generator (BC's own code, ROM-free, a seed = BC's exe's), live apply, saves keep their seed (2026-11-20: all but ROM-free and the player's bundle; checked headless in game) | 15 | 67% | 10.05 | bc-seeds |
+| Randomized data through the porter: characters, commands, espers, items, shops, chests, monsters, formations, encounters, Colosseum, Slots, dances, MagiTek; left: the partly-ported data flags (b, g, i, o, t, bsiab), y, alphalores, cursepower, dancingmaduin, fightclub, and WC's plugin features BC's data needs (natural magic, esper bonuses, Coliseum, rages, steal) moved into the kit | 25 | 63% | 15.75 | bc-seeds |
+| Custom commands (`w`): R-/W-/X-/9x commands, combos, R-Limit, R-Chaos, allcombos, nocombos, endless9, replaceeverything, metronome, suplexwrecks, desperation (2026-11-20: all as PR command rows, random ones on the PR's random-ability function, Random Ice seen working in a battle; repeats and combos in the plugin, their battle test pending) | 12 | 82% | 9.84 | bc-battle |
+| Item specials: procs, breaks, relic bits; MBlock; collateraldamage, electricboogaloo, nobreaks, unbreakable, masseffect, darkworld (2026-11-20: the porter carries BC's weapon effects; each "?" item's description says what changed; left: MBlock, 7 armor procs, 3 relic bits, the break codes) | 6 | 57% | 3.42 | bc-battle |
+| Names and explanations in the PR's own words (no SNES abbreviations; 2026-11-20: items, skills and commands in the PR's words, all fitting the game's boxes; a per-seed guide for newcomers, on the BC screen and in game right after the opening's controls tutorial (`BcGuide.cs`: sc_bc_guide on Map_20010 when the field help closes; the game's message window, a Yes/No question then a page a topic); built and offline-tested, its in-game check queued: bc-guide-1; BC's new character names through the porter's new `character_names` option (port_names.port_character_names: MSG_CHAR_NAME_01..14; New Player renames all 14: Terra is "Kei"), its monster names through `monster_names`, both switched on in bc_seed.py by bc-seeds; a "Who's who" guide page ("Kei is Terra (looks like ...)"); left: the Coral key item's rename) | 4 | 24% | 0.96 | BC lead |
+| About 30 small codes that are plugin code (swdtechspeed, norng, playsitself, dearestmolulu, levelcap, mementomori, naturalstats, supernatural, informativemiss, magicnumbers, mpparty, equipanything, espercutegf, l, u, ...) (2026-11-20: the boosts (data), dancelessons, esper bonuses for `e`) | 8 | 64% | 5.12 | bc-battle |
+| Junction effects: espffect, effectmas, effectory, effectster, treaffect, jejentojori (BC's `bcg_junction.py`, ~57 SNES assembly patches, each a battle effect, as plugin code) | 8 | 40% | 3.2 | bc-junction |
+| Light events: worringtriad, r, h, notawaiter, lessfanatical, regionofdoom, mimetime, rushforpower, airship, shadowstays, j, k (+ alasdraco's text) | 8 | 66% | 5.28 | bc-events |
+| Sprites: makeover (characters, its sprite categories, cloneparty, partyparty, quikdraw, kupokupo, bravenudeworld), remonsterate (monsters), palettes (c, p, n), s | 10 | 73% | 7.3 | BC lead (bc-sprites done; in game 11-21) |
+| Music: johnnydmad, johnnyachaotic (an SNES sound chip and FF6's driver in the plugin, streamed over the game's track); alasdraco (the opera) later | 10 | 90% | 9 | BC lead (bc-music done) |
 | Testing and release (2026-11-20: offline tests, headless runs through the PC test runner; the player's bundle and zip by bc-seeds (2026-11-20: bundled Python, generator/bundle.json, a player install set up in 9.7 s; its in-game check bc-player-1 queued); left: PC + Deck installs, a playthrough of a seed, the release) | 4 | 50% | 2 | BC lead |
-| Other modes: ancientcave, speedcave, racecave (BC's `ancient.py`), `d` (random final dungeon, `towerrandomizer.py`, with morefanatical, which BC applies only inside `d`'s tower remap), strangejourney (entrances); scoped 2026-11-20: all three reuse vanilla room layouts (no new map art): strangejourney rewires the PR's own exits (small), `d` clones ~23 rooms into spare map ids and rewires them (medium), the cave modes do that for 300/85/50 rooms plus rest stops and new start/end scripts (largest); order strangejourney, `d`, caves (plan: the lead's notes, bc-lead.md) | 12 | 0% | 0 | BC lead (a bc-modes session when RAM allows) |
+| Other modes: ancientcave, speedcave, racecave (BC's `ancient.py`), `d` (random final dungeon, `towerrandomizer.py`, with morefanatical, which BC applies only inside `d`'s tower remap), strangejourney (entrances); scoped 2026-11-20: all three reuse vanilla room layouts (no new map art): strangejourney rewires the PR's own exits (small), `d` clones ~23 rooms into spare map ids and rewires them (medium), the cave modes do that for 300/85/50 rooms plus rest stops and new start/end scripts (largest); order strangejourney, `d`, caves (plan: the lead's notes, bc-lead.md) | 12 | 5% | 0.6 | BC lead (a bc-modes session when RAM allows) |
 | Divergent paths (thescenarionottaken: PowerPanda's scenario, BC's `tables/divergentedits.txt`: 549 writes, ~504 KB: 144 dialogue lines rewritten, NPC/event tables, ~9 KB of event code, ~303 KB of repacked map tilemaps, the World of Balance map and exits; Terra + Banon via Baren Falls and the Veldt, Sabin + Edgar via Doma and the Phantom Train, Locke + Celes straight to Narshe; needs the kit's snes_rooms/snes_maps for its layouts) | 8 | 0% | 0 | BC lead (later, its own session) |
-| **Total** (weighted: points / 130 weights) | **130** | | **92.90 = ~71%** | |
+| **Total** (weighted: points / 130 weights) | **130** | | **72.52 = ~56%** | |
 
 ## Live progress (newest first)
 
+- 2026-11-21 11:45 (BC lead): source audit (pr/docs/bc-audit.md: 149 BC features vs BC CE 6.1.3; 17 tested in game,
+  63 ported, 32 partial, 24 missing, 3 left out, 10 n/a): 57.7% by feature, ~56% by area (table above, dashboard
+  rows set from it; was a ~77% estimate). 0.1.0 held for: techniques following shuffled commands (subagent),
+  bingoboingo crashing generation, stale bc_flags statuses, Dance/Rage menu text (bc-seeds); plus bc-8, guide-2b,
+  bc-9. The audit's section 3 is the work list.
+- 2026-11-21 10:45 (BC lead): bc-7 (the 0.1.0 gate: the player bundle's own generator, startup 0 failed, 164/164
+  rows, 555/555 files, data self-tests 4/0) passed; zip being rebuilt from main. bc-art-2b PASS: sprites done
+  (100%; bc-sprites' section moved in below). bc-guide-2 failed on the harness (bcgen 2 s before startup was done):
+  rerun bc-guide-2b. The kit's next map table (staged2: 19 lookalikes now door pairs) changes no area song and no
+  entrance's first choice: OK'd. ~77%.
+- 2026-11-21 10:05 (BC lead): strangejourney's per-world doors in the plugin (BcEntrances.cs, BcDoorRules.cs): a
+  prefix on EventProcedure.EventGotoMap points a shared door's map change at the World of Balance or World of Ruin
+  target from bc_doors.json (kScenarioFlag2 bit 41), only on the door's own map, for its vanilla target, with the
+  party within a tile of it; `bcdoors` for tests. Seed 1234567890: all 55 per-world doors resolve. BcBattle.Tests
+  60/60. In-game check bc-doors sent to QA (Narshe door #51 both ways). Story-version splits (~119) stay as the
+  seed files set them (index pairing work).
+- 2026-11-21 09:50 (BC lead): the kit's table marks lookalikes (another place's room by tiles alone, 537 of 1338
+  rows); bc_music and bc_entrances skip them. The SNES song 0 rooms (keep what plays: Mobliz's houses keep BC's
+  town song) now inherit their area's song through the PR door graph (inherit_kept: a room that names its track
+  again, its real SNES pairs all keeping the song), which the lookalikes had covered by accident. Seed 1234567890: 87
+  PR maps with BC area songs, each from a real pair or inherited. Entrance index: same coverage, 22 rooms more by
+  doors. make_seed runs BC in a child process when BC already ran in the process (BC keeps module state; the
+  parity test ran first). BC Python tests 128 OK (parity forced). bc-5's commands pass voided by QA (no-script
+  battle, harness fixed by the kit lead): rerun bc-10.
+- 2026-11-21 09:25 (BC lead): bc-5's in-game self-tests (junction 8/24, battle 12/8) traced to the checks themselves:
+  junction `start` left Plague's Doom on every monster (the battle was won mid-run; 21 checks ran on the victory
+  screen, IsBattle() stays true there), bckeep's HP 9999 top-up undid the heal/fall checks, and the battle run's
+  fight was won 2 s in (no battle script running: the game's end judgment). Checks now clean up, drive and read
+  only their own acts, see a finished battle; bcselftest holds the end judgment while it runs (test-only). Landed
+  (wt/bc-selftest3); BcBattle.Tests 30/30, BcJunction.Tests 51/51. Rerun bc-8 on the PC after bc-7 (the 0.1.0
+  gate). bc_live's baseline carries strangejourney's 334 files (bc-seeds; bundle ROM-free seed 40 s). Next: the
+  plugin's world-door redirect (55 doors).
+- 2026-11-21 09:00 (BC lead): on the kit's new map table (world/cross per pair, 1338 pairs): area songs rank a
+  shared PR map's pairs by how they were found (manual, chests/exits, doors, tiles, layout), then coverage; a
+  cross-world pair drops only when a same-world pair found structurally is as sure. Seed 1234567890: 96 maps; World
+  of Ruin Mobliz (and its interiors) and Kohlingen no longer take the World of Balance town's BC song (BC changed
+  only those), Figaro Castle's World of Balance basement keeps BC's basement song (its SNES rooms read as World of
+  Ruin only by the cave). bc_entrances now uses the kit's door tools (snes_maps.PrDoors, grow_doors, world_labels:
+  its own pass, lifted into the kit); the rebuilt index is identical. BC Python tests 119 OK.
+- 2026-11-21 08:35 (BC lead): strangejourney's seed step landed (tools/bc_entrances.py apply, in bc_seed.py after
+  bc_events): BC's shuffled short entrances on the PR's doors. Seed 1234567890: 666 of 951 new destinations rewired
+  through 804 door objects (0 set two ways), 5 new arrival points, ~386 map files; out/bc_doors.json lists the 285
+  not rewired (with reasons) and 174 doors several versions share (55 by world: the plugin redirects them by the
+  World of Ruin flag, next; ~119 by story version: mostly an index pairing problem, Doma vs Cyan's Dream, the tower,
+  South Figaro Cave, to fix on the kit's new world tags). Index rebuilt on main's snes_maps; test_bc_entrances 19/19.
+  Pending: bc_live's baseline (bc-seeds), the plugin redirect, an in-game run. Cave modes, `d`, divergent: not started.
+- 2026-11-21 08:10 (BC lead): area songs (tools/bc_music.py): a PR map two SNES maps share plays the surer pair's
+  song (hand-confirmed, then coverage), not whichever SNES map comes first; a pair across worlds (snes_maps' new
+  `cross` tag) counts only when the PR map has no pair of its own world; the pairs now come from snes_maps.table(),
+  so the hand-confirmed overrides give 6 more PR maps BC's songs (seed 1234567890: 81 maps, was 75; no song
+  changed on the 75). The bundle's compact copy carries cross/manual/coverage. tests/test_bc_music.py (8).
+  bc-sprites archived (done; bc-art-2b in bc-6 decides bc-08).
 - 2026-11-21 (BC lead): public repo github.com/thomasjteachey/ff6pr-beyond-chaos created and first pushed (tools/bc_publish.py:
   BC's plugin and test projects, tools/bc_*.py, data/bc_*.json, tests, this doc; the kit and Beyond Chaos at 27de07a as
   submodules; no ROM, bc_base.bin or release assets). bc-junction's clock hooks landed on the kit's new timing core
@@ -186,6 +242,68 @@ Done 2026-11-20 (the first stretch):
   (PrKit/Seeds/GameData.cs). BC's art from other games: one setting (`FF6_BC_ASSETS` bundle|release;
   tools/bc_assets.py fetches the pinned packs BC's own updater installs: BeyondChaosSprites 3.8,
   BeyondChaosMonsterSprites 3.1, the release's custom/opera, music/samples at 27de07a; every file sha1-checked).
+
+### Sprites (bc-sprites, 2026-11-20/21; tested in game: bc-art-1, bc-art-2, bc-art-2b PASS 2026-11-21)
+
+- **Sprites** (bc-sprites, 2026-11-20): BC's makeover / `s` / `c` per SNES sprite slot, captured as BC chooses (its
+  get_sprite_swaps and manage_palettes wrapped, no draws) and read from its output (palette indexes, palettes,
+  portrait ids). The PR's character art is SNES-sized, so BC's 677 custom sheets go in 1:1 (kit
+  tools/snes_charsprites.py: pose map of every PR frame, portraits, packing); vanilla art moved between slots is
+  the PR's own, recoloured with BC's palette (Lab, per-slot shades). Served live by the kit's ArtSwap (by address,
+  atlas and new keys), from the seed's sprites/ folder: no Magicite files, no restart. remonsterate: each picture
+  as remonsterate converts it, on a monster image key of its own, placed where the SNES draws it, with a bestiary
+  thumbnail. `c`+`m` monster palettes: the PR's images recoloured per seed. `n`: the PR's window sprites in BC's
+  window colours. `p`: n/a (the PR's effects aren't palette art). Merchant's slot has no PR art. Themed modes
+  (suplexwrecks, bravenudeworld, quikdraw, halloween, kupokupo) come through the same change_to. alasdraco's
+  singers on the PR's opera NPCs (not Ralse: his PR look is every scholar's). `y`: partly; the Shiva/Ifrit/
+  Tritoch fights keep their PR look (BC draws them as the replacement esper's SNES summon graphic, which a
+  ROM-free player doesn't have; the PR's summon art isn't monster-image art).
+
+### Light events (bc-events, 2026-11-20/21)
+- **How**: `tools/bc_events.py` rewrites each flag's PR scripts and map files per seed into the seed folder; the
+  baseline has them as vanilla's (`bc_events.files()`, own scripts Exit-only, own entity layers empty). Its new lines go
+  in as BC_EV_* keys in the seed's system_en; it rewords the PR's own lines in the seed's story_mes_en (the baseline
+  restores `bc_events.story_keys()`); it edits tables (monster_party, script); and it writes `bc_events.json` for
+  `plugin/BcPlugin/BcEvents.cs` (SysCalls "BC:join/pay/reserve/leave/gil/log" and hooks). BC's choices are read from
+  BC's own output or captured as BC makes them (`bc_events.prepare`: the clock's shuffles, the WoR recruits, the
+  opera's dialogue variables). Nothing is drawn by us, so a seed number stays the exe's game. It's ROM-free: no reads of
+  the ROM's dialogue (bc-seeds' parity runs: the same seed folder with and without the ROM). Flags fail one at a
+  time: a flag that throws is left as the game's own, and the rest still apply.
+- **Per flag**:
+  - `j`: the Phantom Forest's doors from BC's exits, the train exit moved, the forced walk to the spring cut.
+  - `k`: the Zozo clock's answer from BC, and BC's 8 hints on the townsfolk's own lines.
+  - `lessfanatical`: the Cultists' Tower parties lose their magic-only battle script (9024 -> 0).
+  - `regionofdoom`: the Falcon's wheel offers "(Find Doom Gaze.)", which lifts off into the PR's own sky fight.
+  - `shadowstays`: the PR's Shadow-leaves draw always says stay.
+  - `rushforpower`: Vargas' HP and AI, as data.
+  - `h`: the final battle's three parties at random, with no menu.
+  - `airship`: the Blackjack waits outside Narshe after the moogles, and the Falcon is ready at the collapse. The
+    Floating Continent is always on the Blackjack's wheel, and 13 chocobo stables call the airship.
+  - `worringtriad`: the opening goes straight to the World of Ruin at Albrook. It uses the PR's own World of Balance
+    end state (300 story flags), Celes and BC's free character at BC's levels, BC's items, espers, gil and Lores (the
+    Lore holder learns them on joining).
+  - `notawaiter`: 157 vanilla scenes cut to what they do (the kit's `tools/pr_scene_cut.py`). Banon gives BC's two
+    items, and the Mobliz letters can all go at once for 2,500 gil.
+  - `r`: the World of Ruin recruit scenes recast for BC's characters. That covers the named join/naming/reserve calls,
+    character checks, NPC sprites and the name boxes, plus a naming screen for a newcomer who was never named. BC's
+    Falcon character joins when the Falcon rises.
+  - `mimetime`: Gogo waits in BC's World of Ruin room disguised as BC's character, in an entity layer and talk script
+    of our own (script table rows 9200-9211). With that character in the party he gives the Zone Eater's own lines
+    and joins. With `o`, `w` or `t` the Zone Eater holds Gau instead, speaking his own PR lines from the Veldt.
+  - `alasdraco` (text): BC's cast, factions, pronouns and thrown item in 41 of the PR's own opera lines and the
+    roles' name boxes. Only words change, so the sung lines keep the music's timing.
+- **Not carried / later**:
+  - `airship`'s party menus without the forced Locke/Celes: the PR fixes those members in game code, not data.
+  - `worringtriad`: the seed guide never shows, because it waits for the opening.
+  - The name boxes (story_cha_en, for `r` and `alasdraco`) wait for one kit edit: PrKit LiveData routing a seed's
+    story_cha file to the speaker table (with the kit lead). Until then `bc_events.SPEAKERS_LIVE` is off.
+  - `thescenarionottaken` → bc-13; `morefanatical` → bc-12 (with `d`).
+- **Story flags**: ScenarioFlag4 0-31 are Beyond Chaos's own (`bc_events.BC_FLAGS`). No vanilla script touches
+  ScenarioFlag4 0-131; Worlds Collide uses 0-131 only in its own games. In use: 1 = Doom Gaze search pending
+  (regionofdoom), 2 = Gogo found (mimetime). Script table ids 9200-9299 are bc-events' (9200-9211: Gogo's rooms).
+- **Tests**: `tests/test_bc_events.py` (17, offline, on BC's real output for seed 9859608359; ~15 s with its cache).
+  In game: harness `bcev` (flags, map, party, owned, gil, Lores, battle state), `bcflag`, `bcevgen`, `bcjoin`,
+  `bcanswer`, `bcgil`, `bcmsg`, `bcskipnaming`, `bcfinalparty`, `bcselects`.
 
 ## Findings for other BC sessions
 - In a ROM-free seed BC's output has zeros where BC didn't write and the ROM had graphics, text, code or

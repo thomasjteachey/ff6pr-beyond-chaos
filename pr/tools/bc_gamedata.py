@@ -59,6 +59,15 @@ def write_baseline_data(plugin, magicite):
         for k, v in bc_data.story_lines(sorted(set(bc_data.STORY_KEYS) | set(bc_gifts.story_keys())
                                                | set(bc_events.story_keys()))).items():   # + alasdraco's opera lines
             f.write(f"{k}\t{v}\r\n")
+    # the name boxes a seed changes (bc_events: r's recast sites, alasdraco's cast; LiveData sets story_cha_en as
+    # speakers), as the game has them
+    import prdata as P
+    speakers = P.messages("story_cha", "en")
+    dst = os.path.join(base, "vanilla_data", *L.MESSAGE_PATH.split("/"), "story_cha_en.txt")
+    with open(dst, "w", encoding="utf-8", newline="") as f:
+        for k in sorted(bc_events.speaker_keys()):
+            if k in speakers:
+                f.write(f"{k}\t{speakers[k]}\r\n")
 
 
 def make_recipe(gen, plugin, magicite):

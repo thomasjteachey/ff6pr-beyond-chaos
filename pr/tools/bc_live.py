@@ -32,9 +32,12 @@ def own_files():
     import bc_guide as G
     import bc_events
     import bc_gifts           # BC's event gifts (`t`): the scripts that give them
+    import bc_entrances       # strangejourney's rewired doors: the map files they're in
     events = bc_events.files()
     shared = set(events) | set(seed_live.managed_files())
-    return [f"{V.GROUP}/{V.ASSET}.json", G.GUIDE_REL] + events + [f for f in bc_gifts.files() if f not in shared]
+    gifts = [f for f in bc_gifts.files() if f not in shared]
+    doors = [f for f in bc_entrances.files() if f not in shared and f not in gifts]
+    return [f"{V.GROUP}/{V.ASSET}.json", G.GUIDE_REL] + events + gifts + doors
 
 
 def managed_files():
@@ -61,6 +64,8 @@ def write_baseline(out):
                 add(rel)
             else:
                 shutil.copyfile(os.path.join(seed_live.P.VANILLA, *rel.split("/")), dest)
+                if rel != f"{V.GROUP}/{V.ASSET}.json":    # (the Veldt's table: keyed in mod_misc.json below)
+                    add(rel)          # bc_gifts' scripts: in their group's keys/ (else Magicite ignores them)
         os.makedirs(os.path.join(out, V.GROUP, "keys"), exist_ok=True)
         with open(os.path.join(out, V.GROUP, "keys", "mod_misc.json"), "w", encoding="utf-8") as f:
             json.dump({"keys": [V.KEY], "values": [V.ASSET]}, f, indent=2)
