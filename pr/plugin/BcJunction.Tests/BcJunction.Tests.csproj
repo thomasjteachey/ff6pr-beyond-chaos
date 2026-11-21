@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Offline tests for Beyond Chaos's junction effects' numbers (plugin/BcPlugin/BcJunctionMath.cs, game-free;
+       BC's rules from pr/data/bc_junction_spec.json). No game, no NuGet packages. From this folder:
+         dotnet run -c Debug -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <RollForward>Major</RollForward>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\BcPlugin\BcJunctionMath.cs" />
+    <!-- the kit's SNES status clock (game-free): BC's Time Font/Sink and Miasma/Regenerator on its hooks -->
+    <Compile Include="..\PrKit\Ff6\SnesStatusClock.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,76 @@
+{
+  "_doc": [
+    "Every mod this project ships, for tools/kit.py (package, deploy, check) and pr/MODDING.md.",
+    "Paths are relative to pr/. A mod is a BepInEx plugin, a Magicite data folder, or both:",
+    "  name          folder name: BepInEx/plugins/<name> and Magicite/<name>",
+    "  game          ff1..ff6 (the plugin is built against that game's code)",
+    "  plugin        project: the plugin's folder (dotnet build -c Release); files/dirs: [source, name in the plugin folder]",
+    "  magicite      the built Magicite folder; magicite_skip: file names left out of it",
+    "  build         commands run from pr/ before the plugin is built (data scripts); {python} = the venv's",
+    "  exclusive     mods sharing this tag are never installed together (deploy shelves the others)",
+    "  keep          plugin sub-folders a reinstall leaves in place (player data, e.g. WC's seeds)",
+    "  deploy        a mod's own deploy command, used instead of the generic one",
+    "  version / version_file + version_key: the package's version suffix",
+    "  package_leave_out  plugin-folder paths the zip leaves out (made on the player's machine from their game);",
+    "                     package_magicite false: the Magicite folder too; player_setup: the script the plugin",
+    "                     runs to make them (the packager checks the plugin's DLL names it)",
+    "  readme_note   extra paragraph in the package README"
+  ],
+  "mods": {
+    "bc": {
+      "name": "BeyondChaos",
+      "game": "ff6",
+      "title": "Beyond Chaos CE 6.1.3 for FINAL FANTASY VI Pixel Remaster",
+      "plugin": {
+        "project": "plugin/BcPlugin",
+        "files": [
+          [
+            "plugin/BcPlugin/bin/Release/net6.0/BeyondChaos.PR.dll",
+            "BeyondChaos.PR.dll"
+          ],
+          [
+            "plugin/BcPlugin/bc_flags.json",
+            "bc_flags.json"
+          ]
+        ],
+        "dirs": [
+          [
+            "build/BeyondChaos/plugin/generator",
+            "generator"
+          ],
+          [
+            "build/BeyondChaos/plugin/baseline",
+            "baseline"
+          ]
+        ],
+        "data_dir": "BepInEx/BeyondChaos"
+      },
+      "magicite": "build/BeyondChaos/magicite/BeyondChaos",
+      "exclusive": "ff6-game-data",
+      "keep": [
+        "seeds"
+      ],
+      "package_leave_out": [
+        "generator/vanilla",
+        "generator/cache",
+        "baseline/files",
+        "baseline/vanilla_data"
+      ],
+      "package_magicite": false,
+      "player_setup": "bc_gamedata.py",
+      "build": [
+        [
+          "{python}",
+          "tools/bc_flags_export.py"
+        ]
+      ],
+      "post_plugin_build": [
+        [
+          "{python}",
+          "tools/bc_bundle.py"
+        ]
+      ],
+      "readme_note": "Playing: on the title screen, choose \"Beyond Chaos\". Pick a preset (New Player ... Race Insane) or\npaste Beyond Chaos flags (Ctrl+V), type a seed or leave a random one, then \"Generate and play this\nseed\" and start a New Game. Saves remember their seed. A seed, mode and flags make the same game as\nBeyond Chaos CE 6.1.3's own randomizer, made in the game by Beyond Chaos's own code (bundled Python; no\nSNES ROM needed: the game's own files are read from your copy of the game on the first start).\nBeyond Chaos is by Abyssonym and the Beyond Chaos Community Edition team (MIT license:\nBepInEx/BeyondChaos/generator/bc/LICENSE.txt).\n\nThis is a mod of its own: don't install it beside the project's other game-data mods (Brave New\nWorld, Worlds Collide). Start a new game after installing."
+    }
+  }
+}

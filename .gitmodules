@@ -1,0 +1,6 @@
+[submodule "kit"]
+	path = kit
+	url = https://github.com/thomasjteachey/ff6pr-kit.git
+[submodule "mods/beyond-chaos/src"]
+	path = mods/beyond-chaos/src
+	url = https://github.com/FF6BeyondChaos/BeyondChaosRandomizer.git

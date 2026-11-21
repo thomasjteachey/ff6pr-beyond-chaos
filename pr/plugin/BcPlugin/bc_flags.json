@@ -1,0 +1,1993 @@
+{
+ "style": "colon",
+ "version": "CE-6.1.3",
+ "wc_version": "CE-6.1.3",
+ "modes": [
+  {
+   "name": "normal",
+   "label": "Normal",
+   "help": "Play through the normal story.",
+   "forced": [],
+   "prohibited": [],
+   "ported": true
+  },
+  {
+   "name": "katn",
+   "label": "Race - Kefka @ Narshe",
+   "help": "Play the normal story up to Kefka at Narshe. Intended for racing.",
+   "forced": [],
+   "prohibited": [
+    "airship",
+    "alasdraco",
+    "d",
+    "fightclub",
+    "k",
+    "lessfanatical",
+    "mimetime",
+    "morefanatical",
+    "r",
+    "regionofdoom",
+    "worringtriad"
+   ],
+   "ported": false
+  },
+  {
+   "name": "ancientcave",
+   "label": "Ancient Cave",
+   "help": "Play through a long randomized dungeon.",
+   "forced": [
+    "ancientcave"
+   ],
+   "prohibited": [
+    "airship",
+    "alasdraco",
+    "d",
+    "fightclub",
+    "j",
+    "k",
+    "lessfanatical",
+    "mimetime",
+    "morefanatical",
+    "notawaiter",
+    "r",
+    "regionofdoommorefanatical",
+    "rushforpower",
+    "strangejourney",
+    "thescenarionottaken",
+    "worringtriad"
+   ],
+   "ported": false
+  },
+  {
+   "name": "speedcave",
+   "label": "Speed Cave",
+   "help": "Play through a medium-sized randomized dungeon.",
+   "forced": [
+    "speedcave",
+    "ancientcave"
+   ],
+   "prohibited": [
+    "airship",
+    "alasdraco",
+    "d",
+    "fightclub",
+    "j",
+    "k",
+    "lessfanatical",
+    "mimetime",
+    "morefanatical",
+    "notawaiter",
+    "r",
+    "regionofdoommorefanatical",
+    "rushforpower",
+    "strangejourney",
+    "thescenarionottaken",
+    "worringtriad"
+   ],
+   "ported": false
+  },
+  {
+   "name": "racecave",
+   "label": "Race - Randomized Cave",
+   "help": "Play through a short randomized dungeon.",
+   "forced": [
+    "racecave",
+    "speedcave",
+    "ancientcave"
+   ],
+   "prohibited": [
+    "airship",
+    "alasdraco",
+    "d",
+    "fightclub",
+    "j",
+    "k",
+    "lessfanatical",
+    "mimetime",
+    "morefanatical",
+    "notawaiter",
+    "r",
+    "regionofdoommorefanatical",
+    "rushforpower",
+    "strangejourney",
+    "thescenarionottaken",
+    "worringtriad"
+   ],
+   "ported": false
+  },
+  {
+   "name": "dragonhunt",
+   "label": "Race - Dragon Hunt",
+   "help": "Kill all 8 dragons in the World of Ruin. Intended for racing.",
+   "forced": [
+    "worringtriad"
+   ],
+   "prohibited": [
+    "airship",
+    "alasdraco",
+    "j",
+    "rushforpower",
+    "shadowstays",
+    "strangejourney",
+    "thescenarionottaken"
+   ],
+   "ported": false
+  }
+ ],
+ "flags": {
+  "b": {
+   "label": "Fix exploits",
+   "code": "b",
+   "help": "Make the game more balanced by removing known bugs and exploits.",
+   "port": "partly",
+   "type": "bool"
+  },
+  "c": {
+   "label": "Random palettes and names",
+   "code": "c",
+   "help": "Randomize palettes and names of various things.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "d": {
+   "label": "Random final dungeon",
+   "code": "d",
+   "help": "Randomize final dungeon.",
+   "port": "no",
+   "type": "bool"
+  },
+  "e": {
+   "label": "Random espers",
+   "code": "e",
+   "help": "Randomize esper spells and levelup bonuses.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "f": {
+   "label": "Random formations",
+   "code": "f",
+   "help": "Randomize enemy formations.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "g": {
+   "label": "Random dances",
+   "code": "g",
+   "help": "Randomize dances.",
+   "port": "partly",
+   "type": "bool"
+  },
+  "h": {
+   "label": "Random final party",
+   "code": "h",
+   "help": "Your party in the Final Kefka fight will be random.",
+   "port": "no",
+   "type": "bool"
+  },
+  "i": {
+   "label": "Random equipment",
+   "code": "i",
+   "help": "Randomize the stats of equippable items.",
+   "port": "partly",
+   "type": "bool"
+  },
+  "j": {
+   "label": "Random Phantom Forest",
+   "code": "j",
+   "help": "Randomize the phantom forest.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "strangejourney"
+   ]
+  },
+  "k": {
+   "label": "Random Zozo clock",
+   "code": "k",
+   "help": "Randomize the clock in Zozo.",
+   "port": "no",
+   "type": "bool"
+  },
+  "l": {
+   "label": "Random Blitz inputs",
+   "code": "l",
+   "help": "Randomize blitz inputs.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "m": {
+   "label": "Random monster stats",
+   "code": "m",
+   "help": "Randomize enemy stats.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "n": {
+   "label": "Random window colours",
+   "code": "n",
+   "help": "Randomize window background colors.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "o": {
+   "label": "Shuffle commands",
+   "code": "o",
+   "help": "Shuffle characters' in-battle commands.",
+   "port": "partly",
+   "type": "bool"
+  },
+  "p": {
+   "label": "Random animation palettes",
+   "code": "p",
+   "help": "The Pixel Remaster's spell and weapon effects are its own particle art, not palette sprites.  Randomize the palettes of spells and weapon animations.",
+   "port": "na",
+   "type": "bool"
+  },
+  "q": {
+   "label": "Random character stats and equipment",
+   "code": "q",
+   "help": "Randomize what equipment each character can wear and character stats.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "r": {
+   "label": "Shuffle World of Ruin recruits",
+   "code": "r",
+   "help": "Randomize character locations in the world of ruin.",
+   "port": "no",
+   "type": "bool"
+  },
+  "s": {
+   "label": "Swap character sprites",
+   "code": "s",
+   "help": "Swap character graphics around.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "t": {
+   "label": "Random treasure, shops and drops",
+   "code": "t",
+   "help": "Randomize treasure including chests, colosseum, shops, and enemy drops.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "u": {
+   "label": "Umaro's berserk for someone",
+   "code": "u",
+   "help": "Umaro risk. (Random character will be berserk)",
+   "port": "partly",
+   "type": "bool"
+  },
+  "w": {
+   "label": "Replace commands",
+   "code": "w",
+   "help": "Generate new commands for characters,replacing old commands.",
+   "port": "no",
+   "type": "bool"
+  },
+  "y": {
+   "label": "Shuffle magicite",
+   "code": "y",
+   "help": "Shuffle magicite locations.",
+   "port": "partly",
+   "type": "bool"
+  },
+  "z": {
+   "label": "Always dash",
+   "code": "z",
+   "help": "Always have \"Sprint Shoes\" effect.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "bravenudeworld": {
+   "label": "Everyone looks like Esper Terra",
+   "code": "bravenudeworld",
+   "help": "All characters use the Esper Terra sprite.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "kupokupo"
+   ],
+   "requires": [
+    {
+     "s": true
+    }
+   ]
+  },
+  "kupokupo": {
+   "label": "Moogle party",
+   "code": "kupokupo",
+   "help": "All party members are moogles except Mog. With partyparty, all characters are moogles, except Mog, Esper Terra, and Imps.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "bravenudeworld"
+   ],
+   "requires": [
+    {
+     "s": true
+    }
+   ]
+  },
+  "makeover": {
+   "label": "New character sprites",
+   "code": "makeover",
+   "help": "Some sprites are replaced with new ones (like Cecil or Zero Suit Samus).",
+   "port": "yes",
+   "type": "bool",
+   "requires": [
+    {
+     "s": true
+    }
+   ],
+   "children": [
+    "novanilla",
+    "frenchvanilla",
+    "cloneparty"
+   ]
+  },
+  "novanilla": {
+   "label": "No original sprites",
+   "code": "novanilla",
+   "help": "Use with 'makeover' to have sprites from the vanilla game to be guaranteed not to appear.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "frenchvanilla"
+   ],
+   "requires": [
+    {
+     "makeover": true
+    }
+   ]
+  },
+  "frenchvanilla": {
+   "label": "Original sprites as likely as new",
+   "code": "frenchvanilla",
+   "help": "Use with 'makeover' to have sprites from the vanilla game be selected with equal weight to new sprites.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "novanilla"
+   ],
+   "requires": [
+    {
+     "makeover": true
+    }
+   ]
+  },
+  "cloneparty": {
+   "label": "Clone party",
+   "code": "cloneparty",
+   "help": "Use with 'makeover' to have the randomizer actively try to choose spriteversions of the same character.",
+   "port": "no",
+   "type": "bool",
+   "requires": [
+    {
+     "makeover": true
+    }
+   ]
+  },
+  "partyparty": {
+   "label": "Guest sprites in the mix",
+   "code": "partyparty",
+   "help": "Kefka, Trooper, Banon, Leo, Ghost, Merchant, Esper Terra, and Soldier are included in the pool of sprite randomization",
+   "port": "no",
+   "type": "bool",
+   "requires": [
+    {
+     "s": true
+    }
+   ]
+  },
+  "quikdraw": {
+   "label": "Imperial soldier party",
+   "code": "quikdraw",
+   "help": "All characters look like imperial soldiers, and none of them have Gau's Rage skill.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "bravenudeworld",
+    "kupokupo",
+    "suplexwrecks"
+   ],
+   "requires": [
+    {
+     "s": true
+    }
+   ]
+  },
+  "alphalores": {
+   "label": "Lores in alphabetical order",
+   "code": "alphalores",
+   "help": "Alphabetizes the in-battle Lore list.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "informativemiss": {
+   "label": "Informative misses",
+   "code": "informativemiss",
+   "help": "Effects will display 'Miss', 'Null', or 'Fail' depending on why the effect failed to land.",
+   "port": "no",
+   "type": "bool"
+  },
+  "magicnumbers": {
+   "label": "Coloured MP numbers",
+   "code": "magicnumbers",
+   "help": "Changes MP damage and MP healing to display in a different color than HP damage and HP healing.",
+   "port": "no",
+   "type": "bool"
+  },
+  "mpparty": {
+   "label": "Party change refills MP",
+   "code": "mpparty",
+   "help": "MP is also refilled when you form a party, instead of just HP.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "nicerpoison": {
+   "label": "Less poison pixelation",
+   "code": "nicerpoison",
+   "help": "An SNES display fix: the Pixel Remaster draws Poison its own way.  Drastically reduces the pixelation effect of poison when in dungeons.",
+   "port": "na",
+   "type": "bool"
+  },
+  "questionablecontent": {
+   "label": "Mark changed items with ?",
+   "code": "questionablecontent",
+   "help": "Equipment Beyond Chaos changed gets a ? after its name, and its description says what changed (the spell it casts, elements, stats).",
+   "port": "yes",
+   "type": "bool",
+   "requires": [
+    {
+     "i": true
+    }
+   ]
+  },
+  "regionofdoom": {
+   "label": "Doom Gaze finder",
+   "code": "regionofdoom",
+   "help": "Enables a dialog on the World of Ruin Airship to automatically find and fight Doom Gaze.",
+   "port": "no",
+   "type": "bool"
+  },
+  "relicmyhat": {
+   "label": "Combined equipment menus",
+   "code": "relicmyhat",
+   "help": "The Pixel Remaster's equipment and shop screens already work this way.  Combines the equipment and relic menus, and makes shop menus more informative.",
+   "port": "na",
+   "type": "bool",
+   "conflicts": [
+    "equipanything"
+   ]
+  },
+  "removeflashing": {
+   "label": "Remove flashing",
+   "code": "removeflashing",
+   "help": "Edits SNES animation scripts; the Pixel Remaster's effects are its own.  \"All\" removes most white flashing effects from the game. \"BumRush\" just removes the Bum Rush flashing.",
+   "port": "na",
+   "type": "str",
+   "choices": [
+    "vanilla",
+    "all",
+    "bumrush"
+   ],
+   "default": "vanilla"
+  },
+  "slowerbg": {
+   "label": "Slower scrolling backgrounds",
+   "code": "slowerbg",
+   "help": "An SNES display fix: the Pixel Remaster scrolls its backgrounds its own way.  Drastically reduces the speed of vertical scrolling backgrounds.",
+   "port": "na",
+   "type": "bool"
+  },
+  "tastetherainbow": {
+   "label": "Cycling status auras",
+   "code": "tastetherainbow",
+   "help": "SNES status-aura palette cycling; the Pixel Remaster draws status effects its own way.  Enables cycling of status effect auras on characters in-battle.",
+   "port": "na",
+   "type": "bool"
+  },
+  "alasdraco": {
+   "label": "Random opera",
+   "code": "alasdraco",
+   "help": "Randomizes various aesthetic elements of the Opera.",
+   "port": "no",
+   "type": "bool"
+  },
+  "bingoboingo": {
+   "label": "Bingo cards",
+   "code": "bingoboingo",
+   "help": "Generates a Bingo table with various game elements to witness and check off. The ROM does not interact with the bingo board.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "capslockoff": {
+   "label": "Mixed-case names",
+   "code": "capslockoff",
+   "help": "Names use whatever capitalization is in the name lists instead of all caps.",
+   "port": "yes",
+   "type": "bool",
+   "requires": [
+    {
+     "partyparty": true
+    },
+    {
+     "bravenudeworld": true
+    },
+    {
+     "suplexwrecks": true
+    },
+    {
+     "novanilla": true
+    },
+    {
+     "christmas": true
+    },
+    {
+     "halloween": true
+    },
+    {
+     "kupokupo": true
+    },
+    {
+     "quikdraw": true
+    },
+    {
+     "makeover": true
+    },
+    {
+     "cloneparty": true
+    },
+    {
+     "frenchvanilla": true
+    }
+   ]
+  },
+  "johnnyachaotic": {
+   "label": "Chaotic music",
+   "code": "johnnyachaotic",
+   "help": "Randomizes music with no regard to what would make sense in a given location.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "johnnydmad"
+   ]
+  },
+  "johnnydmad": {
+   "label": "New music",
+   "code": "johnnydmad",
+   "help": "Randomizes music with regard to what would make sense in a given location.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "johnnyachaotic"
+   ]
+  },
+  "notawaiter": {
+   "label": "Cutscene skips",
+   "code": "notawaiter",
+   "help": "Up to Kefka at Narshe, the vast majority of mandatory cutscenes are completely removed. Optional cutscenes are not removed.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "ancientcave"
+   ]
+  },
+  "remonsterate": {
+   "label": "New monster sprites",
+   "code": "remonsterate",
+   "help": "Replaces monster sprites with sprites from other games. Requires sprites in the remonstrate\\sprites folder. May introduce sketch glitching.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "collateraldamage": {
+   "label": "Item break mode",
+   "code": "collateraldamage",
+   "help": "All equipment break for spells. Characters only have Fight and Item commands. Enemies will use items drastically more often than usual.",
+   "port": "partly",
+   "type": "bool",
+   "conflicts": [
+    "suplexwrecks"
+   ],
+   "requires": [
+    {
+     "o": true
+    }
+   ]
+  },
+  "cursepower": {
+   "label": "Cursed Shield battles",
+   "code": "cursepower",
+   "help": "Set the number of battles required to uncurse a Cursed Shield. (Vanilla = 255, 0 = Random)",
+   "port": "yes",
+   "type": "int",
+   "min": 0,
+   "max": 255,
+   "default": "255",
+   "special": "random"
+  },
+  "dancelessons": {
+   "label": "No dance failures",
+   "code": "dancelessons",
+   "help": "Removes the 50% chance that dances will fail when used on a different terrain.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "dancingmaduin": {
+   "label": "Restricted espers",
+   "code": "dancingmaduin",
+   "help": "Espers can only be equipped by specific characters. Choose the minimum amount of characters per Esper. Usually changes Paladin Shld spell. \nRandom chooses the same random minimum for all Espers; Chaos chooses them separately.",
+   "port": "partly",
+   "type": "str",
+   "choices": [
+    "off",
+    "chaos",
+    "random",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "10",
+    "11",
+    "12",
+    "13"
+   ],
+   "default": "off",
+   "requires": [
+    {
+     "e": true
+    }
+   ]
+  },
+  "darkworld": {
+   "label": "Slasher's delight (hard mode)",
+   "code": "darkworld",
+   "help": "Drastically increases the difficulty of the seed, akin to a hard mode. Mostly meant to be used in conjunction with the madworld flag.",
+   "port": "partly",
+   "type": "bool",
+   "conflicts": [
+    "ancientcave"
+   ],
+   "requires": [
+    {
+     "m": true
+    }
+   ]
+  },
+  "easymodo": {
+   "label": "Easy mode (monsters have 1 HP)",
+   "code": "easymodo",
+   "help": "All enemies have 1 HP.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "electricboogaloo": {
+   "label": "Wild item breaks",
+   "code": "electricboogaloo",
+   "help": "Increases the list of spells that items can break and proc for from just magic and some summons to include almost any skill.",
+   "port": "partly",
+   "type": "bool",
+   "requires": [
+    {
+     "i": true
+    }
+   ]
+  },
+  "expboost": {
+   "label": "EXP multiplier",
+   "code": "expboost",
+   "help": "All battles will award multiplied exp.",
+   "port": "yes",
+   "type": "float",
+   "min": 0.0,
+   "max": 50.0,
+   "default": "1.00",
+   "special": "random"
+  },
+  "gpboost": {
+   "label": "Gil multiplier",
+   "code": "gpboost",
+   "help": "All battles will award multiplied gp.",
+   "port": "yes",
+   "type": "float",
+   "min": 0.0,
+   "max": 50.0,
+   "default": "1.00",
+   "special": "random"
+  },
+  "lessfanatical": {
+   "label": "Easy Fanatics' Tower",
+   "code": "lessfanatical",
+   "help": "Disables forced magic command in Fanatic's Tower.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "suplexwrecks"
+   ],
+   "requires": [
+    {
+     "o": true
+    }
+   ]
+  },
+  "madworld": {
+   "label": "Tierless (tiers for fears)",
+   "code": "madworld",
+   "help": "Creates a \"true tierless\" seed, with enemies having a higher degree of randomization and shops being very randomized as well.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "masseffect": {
+   "label": "Wild equipment effects",
+   "code": "masseffect",
+   "help": "Increases the number of rogue effects on equipment",
+   "port": "partly",
+   "type": "str",
+   "choices": [
+    "off",
+    "random",
+    "low",
+    "med",
+    "high"
+   ],
+   "default": "off",
+   "requires": [
+    {
+     "i": true
+    }
+   ]
+  },
+  "mpboost": {
+   "label": "AP multiplier",
+   "code": "mpboost",
+   "help": "All battles will award multiplied magic points.",
+   "port": "yes",
+   "type": "float",
+   "min": 0.0,
+   "max": 50.0,
+   "default": "1.00",
+   "special": "random"
+  },
+  "nobreaks": {
+   "label": "No item breaks",
+   "code": "nobreaks",
+   "help": "Causes no items to break for spell effects.",
+   "port": "yes",
+   "type": "bool",
+   "conflicts": [
+    "unbreakable"
+   ],
+   "requires": [
+    {
+     "i": true
+    }
+   ]
+  },
+  "norng": {
+   "label": "No randomness in battle",
+   "code": "norng",
+   "help": "Almost all calls to the RNG are removed, and actions are much less random as a result.",
+   "port": "no",
+   "type": "bool",
+   "requires": [
+    {
+     "b": true
+    }
+   ]
+  },
+  "playsitself": {
+   "label": "Autobattle",
+   "code": "playsitself",
+   "help": "All characters will act automatically, in a manner similar to when Coliseum fights are fought.",
+   "port": "no",
+   "type": "bool"
+  },
+  "randombosses": {
+   "label": "Random boss skills",
+   "code": "randombosses",
+   "help": "Causes boss skills to be randomized similarly to regular enemy skills. Boss skills can change to similarly powerful skills.",
+   "port": "yes",
+   "type": "bool",
+   "requires": [
+    {
+     "m": true
+    }
+   ]
+  },
+  "rushforpower": {
+   "label": "Old Vargas fight",
+   "code": "rushforpower",
+   "help": "Reverts the Vargas fight to only require that Vargas take any damage to begin his second phase.",
+   "port": "no",
+   "type": "bool",
+   "requires": [
+    {
+     "m": true
+    },
+    {
+     "o": true
+    },
+    {
+     "w": true
+    }
+   ]
+  },
+  "swdtechspeed": {
+   "label": "Bushido gauge speed",
+   "code": "swdtechspeed",
+   "help": "Alters the speed at which the SwdTech bar moves.",
+   "port": "yes",
+   "type": "str",
+   "choices": [
+    "fastest",
+    "faster",
+    "fast",
+    "vanilla",
+    "random"
+   ],
+   "default": "vanilla"
+  },
+  "unbreakable": {
+   "label": "Unbreakable items",
+   "code": "unbreakable",
+   "help": "Causes all items to be indestructible when broken for a spell.",
+   "port": "yes",
+   "type": "bool",
+   "conflicts": [
+    "nobreaks"
+   ],
+   "requires": [
+    {
+     "i": true
+    }
+   ]
+  },
+  "bsiab": {
+   "label": "Unbalanced monster boxes",
+   "code": "bsiab",
+   "help": "Greatly increases the variance of monster-in-a-box encounters and removes some sanity checks, allowing them to be much more difficult and volatile",
+   "port": "yes",
+   "type": "bool",
+   "conflicts": [
+    "ancientcave",
+    "nomiabs"
+   ],
+   "requires": [
+    {
+     "t": true
+    }
+   ]
+  },
+  "cursedencounters": {
+   "label": "Expanded encounters",
+   "code": "cursedencounters",
+   "help": "Increases all zones to have 16 possible enemy encounters.",
+   "port": "yes",
+   "type": "bool",
+   "requires": [
+    {
+     "f": true
+    }
+   ]
+  },
+  "dearestmolulu": {
+   "label": "No random encounters",
+   "code": "dearestmolulu",
+   "help": "No random encounters occur. Items that alter encounter rates increase them. EXP flag recommended",
+   "port": "partly",
+   "type": "bool",
+   "conflicts": [
+    "ancientcave"
+   ]
+  },
+  "fightclub": {
+   "label": "Hidden Colosseum rewards",
+   "code": "fightclub",
+   "help": "Does not allow you to see the coliseum rewards before betting, but you can often run from the coliseum battles to keep your item.",
+   "port": "partly",
+   "type": "bool"
+  },
+  "mimetime": {
+   "label": "Hidden Gogo",
+   "code": "mimetime",
+   "help": "Gogo will be hidden somewhere in the World of Ruin disguised as another character. Bring that character to him to recruit him.",
+   "port": "no",
+   "type": "bool",
+   "requires": [
+    {
+     "o": true
+    },
+    {
+     "t": true
+    },
+    {
+     "w": true
+    }
+   ]
+  },
+  "morefanatical": {
+   "label": "Harder Fanatics' Tower",
+   "code": "morefanatical",
+   "help": "Later in this port (with the random final dungeon).  Fanatic's Tower is even more confusing than usual.",
+   "port": "later",
+   "type": "bool",
+   "conflicts": [
+    "ancientcave"
+   ],
+   "requires": [
+    {
+     "d": true
+    }
+   ]
+  },
+  "nomiabs": {
+   "label": "No monster boxes",
+   "code": "nomiabs",
+   "help": "Chests will never have monster encounters in them.",
+   "port": "yes",
+   "type": "bool",
+   "conflicts": [
+    "ancientcave",
+    "bsiab"
+   ],
+   "requires": [
+    {
+     "t": true
+    }
+   ]
+  },
+  "randomboost": {
+   "label": "Randomness boost",
+   "code": "randomboost",
+   "help": "Increases the strength of randomization for chests, steals, drops, skills, and Esper spells. (0=uniform distribution)",
+   "port": "yes",
+   "type": "float",
+   "min": 0.0,
+   "max": 10.0,
+   "default": "1.00",
+   "special": "random"
+  },
+  "thescenarionottaken": {
+   "label": "Divergent paths",
+   "code": "thescenarionottaken",
+   "help": "Later in this port (Divergent paths).  Changes the way the 3 scenarios are split up, to resemble PowerPanda's 'Divergent Paths' mod.",
+   "port": "later",
+   "type": "bool",
+   "conflicts": [
+    "strangejourney",
+    "worringtriad"
+   ]
+  },
+  "worringtriad": {
+   "label": "Start in the World of Ruin",
+   "code": "worringtriad",
+   "help": "The player will start in the World of Ruin, with all of the World of Balance treasure chests, along with a guaranteed set of items, and more Lores.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "thescenarionottaken",
+    "ancientcave"
+   ]
+  },
+  "allcombos": {
+   "label": "All combo skills",
+   "code": "allcombos",
+   "help": "All skills that get replaced with something are replaced with combo skills.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "nocombos",
+    "suplexwrecks"
+   ],
+   "requires": [
+    {
+     "w": true
+    }
+   ]
+  },
+  "canttouchthis": {
+   "label": "Invincible party",
+   "code": "canttouchthis",
+   "help": "All characters have 255 Defense and 255 Magic Defense, as well as 128 Evasion and Magic Evasion.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "desperation": {
+   "label": "Desperation attacks",
+   "code": "desperation",
+   "help": "Guarantees one character will have R-Limit, and greatly increases the chance of having desperation attacks as commands.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "suplexwrecks"
+   ],
+   "requires": [
+    {
+     "w": true
+    }
+   ]
+  },
+  "endless9": {
+   "label": "Endless nine (9x skills)",
+   "code": "endless9",
+   "help": "All R-[skills] are automatically changed to 9x[skills]. W-[skills] will become 8x[skills].",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "suplexwrecks"
+   ],
+   "requires": [
+    {
+     "w": true
+    }
+   ]
+  },
+  "levelcap": {
+   "label": "Level cap",
+   "code": "levelcap",
+   "help": "Set a maximum level for your characters. Toggle on to reveal additional options.",
+   "port": "partly",
+   "type": "bool",
+   "children": [
+    "cap_type",
+    "cap_min",
+    "cap_max"
+   ]
+  },
+  "cap_type": {
+   "label": "Cap type",
+   "code": "cap_type",
+   "help": "How should the level cap behave? Random: Roll one level cap, apply it to all characters. Chaos: Roll a different level cap for each character.",
+   "port": "no",
+   "type": "str",
+   "choices": [
+    "random",
+    "chaos"
+   ],
+   "default": "random"
+  },
+  "cap_min": {
+   "label": "Lowest cap",
+   "code": "cap_min",
+   "help": "The minimum value that characters can roll as their capped level.",
+   "port": "no",
+   "type": "int",
+   "min": 1,
+   "max": 98,
+   "default": "1"
+  },
+  "cap_max": {
+   "label": "Highest cap",
+   "code": "cap_max",
+   "help": "The maximum value that characters can roll as their capped level.",
+   "port": "no",
+   "type": "int",
+   "min": 2,
+   "max": 99,
+   "default": "99"
+  },
+  "mementomori": {
+   "label": "Innate relics",
+   "code": "mementomori",
+   "help": "Number of characters that begin with an innate relic ability.",
+   "port": "no",
+   "type": "str",
+   "choices": [
+    "random",
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14"
+   ],
+   "default": "0"
+  },
+  "metronome": {
+   "label": "Random Chaos for everyone",
+   "code": "metronome",
+   "help": "All characters have Fight, R-Chaos, Magic, and Item as their skillset, except for the Mime, who has Mimic instead of Fight, and the Berserker, who only has R-Chaos.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "suplexwrecks"
+   ],
+   "requires": [
+    {
+     "o": true
+    }
+   ]
+  },
+  "naturalmagic": {
+   "label": "Natural magic only",
+   "code": "naturalmagic",
+   "help": "No Espers or equipment will teach spells. The only way for characters to learn spells is through leveling up, if they have their own innate magic list.",
+   "port": "partly",
+   "type": "bool"
+  },
+  "naturalstats": {
+   "label": "No esper stat bonuses",
+   "code": "naturalstats",
+   "help": "No Espers will grant stat bonuses upon leveling up.",
+   "port": "yes",
+   "type": "bool"
+  },
+  "nocombos": {
+   "label": "No combo skills",
+   "code": "nocombos",
+   "help": "There will be no combo(dual) skills.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "allcombos",
+    "suplexwrecks"
+   ],
+   "requires": [
+    {
+     "w": true
+    }
+   ]
+  },
+  "penultima": {
+   "label": "No Ultima",
+   "code": "penultima",
+   "help": "Ultima cannot be learned by any means.",
+   "port": "yes",
+   "type": "bool",
+   "conflicts": [
+    "suplexwrecks"
+   ],
+   "requires": [
+    {
+     "w": true
+    }
+   ]
+  },
+  "replaceeverything": {
+   "label": "Replace every skill",
+   "code": "replaceeverything",
+   "help": "All vanilla skills that can be replaced, are replaced.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "suplexwrecks"
+   ],
+   "requires": [
+    {
+     "w": true
+    }
+   ]
+  },
+  "shadowstays": {
+   "label": "Shadow stays",
+   "code": "shadowstays",
+   "help": "Shadow no longer has a chance to leave the party in random battles",
+   "port": "no",
+   "type": "bool"
+  },
+  "supernatural": {
+   "label": "Natural magic for every caster",
+   "code": "supernatural",
+   "help": "Makes it so that any character with the Magic command will have natural magic.",
+   "port": "partly",
+   "type": "bool",
+   "requires": [
+    {
+     "o": true
+    }
+   ]
+  },
+  "suplexwrecks": {
+   "label": "Suplex mode (everyone is Sabin)",
+   "code": "suplexwrecks",
+   "help": "All characters use the Sabin sprite, have a name similar to Sabin, have the Blitz and Suplex commands, and can hit every enemy with Suplex.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "kupokupo",
+    "bravenudeworld",
+    "quikdraw"
+   ]
+  },
+  "airship": {
+   "label": "Airship from the start",
+   "code": "airship",
+   "help": "The player can access the airship after leaving Narshe, or from any chocobo stable. Doing events out of order can cause softlocks.",
+   "port": "no",
+   "type": "bool"
+  },
+  "equipanything": {
+   "label": "Equip anything",
+   "code": "equipanything",
+   "help": "Armor and relics can be held in a hand, as a shield is; items that aren't equipment can't (the game's equip lists hold only weapons and armor).  Items that are not equippable normally can now be equipped as weapons or shields. These often give strange defensive stats or weapon animations.",
+   "port": "partly",
+   "type": "bool",
+   "conflicts": [
+    "relicmyhat"
+   ]
+  },
+  "sketch": {
+   "label": "Sketch glitch",
+   "code": "sketch",
+   "help": "The Sketch glitch is SNES memory corruption the Pixel Remaster doesn't have.  Enables sketch bug. Not recommended unless you know what you are doing.",
+   "port": "na",
+   "type": "bool"
+  },
+  "strangejourney": {
+   "label": "Bizarre adventure (entrances)",
+   "code": "strangejourney",
+   "help": "A prototype entrance randomizer, similar to the ancientcave mode. Includes all maps and event tiles, and is usually extremely hard to beat by itself.",
+   "port": "no",
+   "type": "bool",
+   "conflicts": [
+    "thescenarionottaken",
+    "j"
+   ]
+  },
+  "espercutegf": {
+   "label": "Summoner mode",
+   "code": "espercutegf",
+   "help": "Characters gain the traits of equipped espers. Casters can change equipped esper mid-battle.",
+   "port": "no",
+   "type": "bool"
+  },
+  "espffect": {
+   "label": "Junction effects on espers",
+   "code": "espffect",
+   "help": "Attach random effects from the \"Junction\" patch set to espers.",
+   "port": "no",
+   "type": "bool"
+  },
+  "effectmas": {
+   "label": "Junction effects on equipment",
+   "code": "effectmas",
+   "help": "Attach random effects from the \"Junction\" patch set to equipment (excluding relics). Low potential for softlocks.",
+   "port": "no",
+   "type": "bool"
+  },
+  "effectory": {
+   "label": "Junction effects on relics",
+   "code": "effectory",
+   "help": "Attach random effects from the \"Junction\" patch set to relics. Low potential for softlocks.",
+   "port": "no",
+   "type": "bool"
+  },
+  "effectster": {
+   "label": "Junction effects on monsters",
+   "code": "effectster",
+   "help": "Attach random effects from the \"Junction\" patch set to monsters, rages, and some statuses. Medium potential for softlocks.",
+   "port": "no",
+   "type": "bool"
+  },
+  "treaffect": {
+   "label": "Monsters' item junction effects",
+   "code": "treaffect",
+   "help": "Monsters inherit the \"Junction\" effects of held items. Medium potential for softlocks.",
+   "port": "no",
+   "type": "bool"
+  },
+  "jejentojori": {
+   "label": "Innate relic junctions",
+   "code": "jejentojori",
+   "help": "Innate \"mementomori\" relics retain their junction effects. High potential for softlocks.",
+   "port": "no",
+   "type": "bool",
+   "requires": [
+    {
+     "mementomori": "*"
+    }
+   ]
+  },
+  "object": {
+   "label": "Object sprites",
+   "code": "object",
+   "help": "Adjust probability of selecting object sprites.",
+   "port": "no",
+   "type": "str",
+   "choices": [
+    "normal",
+    "no",
+    "hate",
+    "like",
+    "only"
+   ],
+   "default": "normal",
+   "requires": [
+    {
+     "makeover": true
+    }
+   ]
+  },
+  "kids": {
+   "label": "Kid sprites",
+   "code": "kids",
+   "help": "Adjust probability of selecting kids sprites.",
+   "port": "no",
+   "type": "str",
+   "choices": [
+    "normal",
+    "no",
+    "hate",
+    "like",
+    "only"
+   ],
+   "default": "normal",
+   "requires": [
+    {
+     "makeover": true
+    }
+   ]
+  },
+  "girls": {
+   "label": "Girl sprites",
+   "code": "girls",
+   "help": "Adjust probability of selecting girls sprites.",
+   "port": "no",
+   "type": "str",
+   "choices": [
+    "normal",
+    "no",
+    "hate",
+    "like",
+    "only"
+   ],
+   "default": "normal",
+   "requires": [
+    {
+     "makeover": true
+    }
+   ]
+  },
+  "anime": {
+   "label": "Anime sprites",
+   "code": "anime",
+   "help": "Adjust probability of selecting anime sprites.",
+   "port": "no",
+   "type": "str",
+   "choices": [
+    "normal",
+    "no",
+    "hate",
+    "like",
+    "only"
+   ],
+   "default": "normal",
+   "requires": [
+    {
+     "makeover": true
+    }
+   ]
+  },
+  "boys": {
+   "label": "Boy sprites",
+   "code": "boys",
+   "help": "Adjust probability of selecting boys sprites.",
+   "port": "no",
+   "type": "str",
+   "choices": [
+    "normal",
+    "no",
+    "hate",
+    "like",
+    "only"
+   ],
+   "default": "normal",
+   "requires": [
+    {
+     "makeover": true
+    }
+   ]
+  },
+  "generic": {
+   "label": "Generic sprites",
+   "code": "generic",
+   "help": "Adjust probability of selecting generic sprites.",
+   "port": "no",
+   "type": "str",
+   "choices": [
+    "normal",
+    "no",
+    "hate",
+    "like",
+    "only"
+   ],
+   "default": "normal",
+   "requires": [
+    {
+     "makeover": true
+    }
+   ]
+  },
+  "animals": {
+   "label": "Animal sprites",
+   "code": "animals",
+   "help": "Adjust probability of selecting animals sprites.",
+   "port": "no",
+   "type": "str",
+   "choices": [
+    "normal",
+    "no",
+    "hate",
+    "like",
+    "only"
+   ],
+   "default": "normal",
+   "requires": [
+    {
+     "makeover": true
+    }
+   ]
+  }
+ },
+ "sections": [
+  {
+   "title": "Core",
+   "port": "partly",
+   "rows": [
+    {
+     "kind": "flag",
+     "flag": "b"
+    },
+    {
+     "kind": "flag",
+     "flag": "c"
+    },
+    {
+     "kind": "flag",
+     "flag": "d"
+    },
+    {
+     "kind": "flag",
+     "flag": "e"
+    },
+    {
+     "kind": "flag",
+     "flag": "f"
+    },
+    {
+     "kind": "flag",
+     "flag": "g"
+    },
+    {
+     "kind": "flag",
+     "flag": "h"
+    },
+    {
+     "kind": "flag",
+     "flag": "i"
+    },
+    {
+     "kind": "flag",
+     "flag": "j"
+    },
+    {
+     "kind": "flag",
+     "flag": "k"
+    },
+    {
+     "kind": "flag",
+     "flag": "l"
+    },
+    {
+     "kind": "flag",
+     "flag": "m"
+    },
+    {
+     "kind": "flag",
+     "flag": "n"
+    },
+    {
+     "kind": "flag",
+     "flag": "o"
+    },
+    {
+     "kind": "flag",
+     "flag": "p"
+    },
+    {
+     "kind": "flag",
+     "flag": "q"
+    },
+    {
+     "kind": "flag",
+     "flag": "r"
+    },
+    {
+     "kind": "flag",
+     "flag": "s"
+    },
+    {
+     "kind": "flag",
+     "flag": "t"
+    },
+    {
+     "kind": "flag",
+     "flag": "u"
+    },
+    {
+     "kind": "flag",
+     "flag": "w"
+    },
+    {
+     "kind": "flag",
+     "flag": "y"
+    },
+    {
+     "kind": "flag",
+     "flag": "z"
+    }
+   ]
+  },
+  {
+   "title": "Characters",
+   "port": "partly",
+   "rows": [
+    {
+     "kind": "flag",
+     "flag": "allcombos"
+    },
+    {
+     "kind": "flag",
+     "flag": "canttouchthis"
+    },
+    {
+     "kind": "flag",
+     "flag": "desperation"
+    },
+    {
+     "kind": "flag",
+     "flag": "endless9"
+    },
+    {
+     "kind": "flag",
+     "flag": "levelcap"
+    },
+    {
+     "kind": "flag",
+     "flag": "cap_type",
+     "indent": 1
+    },
+    {
+     "kind": "flag",
+     "flag": "cap_min",
+     "indent": 1
+    },
+    {
+     "kind": "flag",
+     "flag": "cap_max",
+     "indent": 1
+    },
+    {
+     "kind": "flag",
+     "flag": "mementomori"
+    },
+    {
+     "kind": "flag",
+     "flag": "metronome"
+    },
+    {
+     "kind": "flag",
+     "flag": "naturalmagic"
+    },
+    {
+     "kind": "flag",
+     "flag": "naturalstats"
+    },
+    {
+     "kind": "flag",
+     "flag": "nocombos"
+    },
+    {
+     "kind": "flag",
+     "flag": "penultima"
+    },
+    {
+     "kind": "flag",
+     "flag": "replaceeverything"
+    },
+    {
+     "kind": "flag",
+     "flag": "shadowstays"
+    },
+    {
+     "kind": "flag",
+     "flag": "supernatural"
+    },
+    {
+     "kind": "flag",
+     "flag": "suplexwrecks"
+    }
+   ]
+  },
+  {
+   "title": "Battle",
+   "port": "partly",
+   "rows": [
+    {
+     "kind": "flag",
+     "flag": "collateraldamage"
+    },
+    {
+     "kind": "flag",
+     "flag": "cursepower"
+    },
+    {
+     "kind": "flag",
+     "flag": "dancelessons"
+    },
+    {
+     "kind": "flag",
+     "flag": "dancingmaduin"
+    },
+    {
+     "kind": "flag",
+     "flag": "darkworld"
+    },
+    {
+     "kind": "flag",
+     "flag": "easymodo"
+    },
+    {
+     "kind": "flag",
+     "flag": "electricboogaloo"
+    },
+    {
+     "kind": "flag",
+     "flag": "expboost"
+    },
+    {
+     "kind": "flag",
+     "flag": "gpboost"
+    },
+    {
+     "kind": "flag",
+     "flag": "lessfanatical"
+    },
+    {
+     "kind": "flag",
+     "flag": "madworld"
+    },
+    {
+     "kind": "flag",
+     "flag": "masseffect"
+    },
+    {
+     "kind": "flag",
+     "flag": "mpboost"
+    },
+    {
+     "kind": "flag",
+     "flag": "nobreaks"
+    },
+    {
+     "kind": "flag",
+     "flag": "norng"
+    },
+    {
+     "kind": "flag",
+     "flag": "playsitself"
+    },
+    {
+     "kind": "flag",
+     "flag": "randombosses"
+    },
+    {
+     "kind": "flag",
+     "flag": "rushforpower"
+    },
+    {
+     "kind": "flag",
+     "flag": "swdtechspeed"
+    },
+    {
+     "kind": "flag",
+     "flag": "unbreakable"
+    }
+   ]
+  },
+  {
+   "title": "Field",
+   "port": "partly",
+   "rows": [
+    {
+     "kind": "flag",
+     "flag": "bsiab"
+    },
+    {
+     "kind": "flag",
+     "flag": "cursedencounters"
+    },
+    {
+     "kind": "flag",
+     "flag": "dearestmolulu"
+    },
+    {
+     "kind": "flag",
+     "flag": "fightclub"
+    },
+    {
+     "kind": "flag",
+     "flag": "mimetime"
+    },
+    {
+     "kind": "flag",
+     "flag": "morefanatical"
+    },
+    {
+     "kind": "flag",
+     "flag": "nomiabs"
+    },
+    {
+     "kind": "flag",
+     "flag": "randomboost"
+    },
+    {
+     "kind": "flag",
+     "flag": "thescenarionottaken"
+    },
+    {
+     "kind": "flag",
+     "flag": "worringtriad"
+    }
+   ]
+  },
+  {
+   "title": "Quality of life",
+   "port": "partly",
+   "rows": [
+    {
+     "kind": "flag",
+     "flag": "alphalores"
+    },
+    {
+     "kind": "flag",
+     "flag": "informativemiss"
+    },
+    {
+     "kind": "flag",
+     "flag": "magicnumbers"
+    },
+    {
+     "kind": "flag",
+     "flag": "mpparty"
+    },
+    {
+     "kind": "flag",
+     "flag": "nicerpoison"
+    },
+    {
+     "kind": "flag",
+     "flag": "questionablecontent"
+    },
+    {
+     "kind": "flag",
+     "flag": "regionofdoom"
+    },
+    {
+     "kind": "flag",
+     "flag": "relicmyhat"
+    },
+    {
+     "kind": "flag",
+     "flag": "removeflashing"
+    },
+    {
+     "kind": "flag",
+     "flag": "slowerbg"
+    },
+    {
+     "kind": "flag",
+     "flag": "tastetherainbow"
+    }
+   ]
+  },
+  {
+   "title": "Sprites",
+   "port": "partly",
+   "rows": [
+    {
+     "kind": "flag",
+     "flag": "bravenudeworld"
+    },
+    {
+     "kind": "flag",
+     "flag": "kupokupo"
+    },
+    {
+     "kind": "flag",
+     "flag": "makeover"
+    },
+    {
+     "kind": "flag",
+     "flag": "novanilla",
+     "indent": 1
+    },
+    {
+     "kind": "flag",
+     "flag": "frenchvanilla",
+     "indent": 1
+    },
+    {
+     "kind": "flag",
+     "flag": "cloneparty",
+     "indent": 1
+    },
+    {
+     "kind": "flag",
+     "flag": "partyparty"
+    },
+    {
+     "kind": "flag",
+     "flag": "quikdraw"
+    }
+   ]
+  },
+  {
+   "title": "Sprite categories",
+   "port": "no",
+   "rows": [
+    {
+     "kind": "flag",
+     "flag": "animals"
+    },
+    {
+     "kind": "flag",
+     "flag": "anime"
+    },
+    {
+     "kind": "flag",
+     "flag": "boys"
+    },
+    {
+     "kind": "flag",
+     "flag": "generic"
+    },
+    {
+     "kind": "flag",
+     "flag": "girls"
+    },
+    {
+     "kind": "flag",
+     "flag": "kids"
+    },
+    {
+     "kind": "flag",
+     "flag": "object"
+    }
+   ]
+  },
+  {
+   "title": "Aesthetic",
+   "port": "partly",
+   "rows": [
+    {
+     "kind": "flag",
+     "flag": "alasdraco"
+    },
+    {
+     "kind": "flag",
+     "flag": "bingoboingo"
+    },
+    {
+     "kind": "flag",
+     "flag": "capslockoff"
+    },
+    {
+     "kind": "flag",
+     "flag": "johnnyachaotic"
+    },
+    {
+     "kind": "flag",
+     "flag": "johnnydmad"
+    },
+    {
+     "kind": "flag",
+     "flag": "notawaiter"
+    },
+    {
+     "kind": "flag",
+     "flag": "remonsterate"
+    }
+   ]
+  },
+  {
+   "title": "Experimental",
+   "port": "no",
+   "rows": [
+    {
+     "kind": "flag",
+     "flag": "effectmas"
+    },
+    {
+     "kind": "flag",
+     "flag": "effectory"
+    },
+    {
+     "kind": "flag",
+     "flag": "effectster"
+    },
+    {
+     "kind": "flag",
+     "flag": "espercutegf"
+    },
+    {
+     "kind": "flag",
+     "flag": "espffect"
+    },
+    {
+     "kind": "flag",
+     "flag": "jejentojori"
+    },
+    {
+     "kind": "flag",
+     "flag": "strangejourney"
+    },
+    {
+     "kind": "flag",
+     "flag": "treaffect"
+    }
+   ]
+  },
+  {
+   "title": "Gamebreaking",
+   "port": "partly",
+   "rows": [
+    {
+     "kind": "flag",
+     "flag": "airship"
+    },
+    {
+     "kind": "flag",
+     "flag": "equipanything"
+    },
+    {
+     "kind": "flag",
+     "flag": "sketch"
+    }
+   ]
+  }
+ ],
+ "presets": {
+  "New Player": "b c e f g i n o p q r s t w y z alphalores informativemiss magicnumbers mpparty nicerpoison questionablecontent regionofdoom relicmyhat slowerbg tastetherainbow makeover partyparty alasdraco capslockoff johnnydmad dancelessons lessfanatical expboost:2.0 gpboost:2.0 mpboost:2.0 swdtechspeed:faster shadowstays",
+  "Intermediate Player": "b c d e f g i j k m n o p q r s t u w y z alphalores informativemiss magicnumbers mpparty nicerpoison questionablecontent regionofdoom relicmyhat slowerbg tastetherainbow makeover partyparty alasdraco capslockoff johnnydmad notawaiter remonsterate dancelessons electricboogaloo lessfanatical swdtechspeed:faster shadowstays",
+  "Advanced Player": "b c d e f g h i j k m n o p q r s t u w y z alphalores informativemiss magicnumbers mpparty nicerpoison questionablecontent regionofdoom relicmyhat slowerbg tastetherainbow makeover partyparty alasdraco capslockoff johnnydmad notawaiter remonsterate dancelessons electricboogaloo randombosses dancingmaduin:1 swdtechspeed:random mimetime morefanatical mementomori:14",
+  "Chaotic Player": "b c d e f g h i j k m n o p q r s t u w y z alphalores informativemiss magicnumbers mpparty nicerpoison questionablecontent regionofdoom relicmyhat slowerbg tastetherainbow makeover partyparty alasdraco capslockoff johnnyachaotic notawaiter remonsterate dancelessons electricboogaloo randombosses dancingmaduin:chaos masseffect:med swdtechspeed:random bsiab mimetime randomboost:2 allcombos supernatural mementomori:random thescenarionottaken",
+  "Race Easy": "b c d e f g i j k m n o p q r s t w y z alphalores informativemiss magicnumbers mpparty nicerpoison questionablecontent regionofdoom relicmyhat slowerbg tastetherainbow makeover partyparty capslockoff johnnydmad notawaiter remonsterate madworld",
+  "Race Medium": "b c d e f g i j k m n o p q r s t u w y z alphalores informativemiss magicnumbers mpparty nicerpoison questionablecontent regionofdoom relicmyhat slowerbg tastetherainbow makeover partyparty capslockoff johnnydmad notawaiter remonsterate electricboogaloo madworld randombosses",
+  "Race Insane": "b c d e f g i j k m n o p q r s t u w y z alphalores informativemiss magicnumbers mpparty nicerpoison questionablecontent regionofdoom relicmyhat slowerbg tastetherainbow makeover partyparty capslockoff johnnydmad notawaiter remonsterate darkworld electricboogaloo madworld nobreaks randombosses bsiab mementomori:14"
+ }
+}
