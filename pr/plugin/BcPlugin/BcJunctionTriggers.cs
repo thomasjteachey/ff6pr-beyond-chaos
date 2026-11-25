@@ -43,6 +43,7 @@ namespace BeyondChaos.PR
     static class BcJunctionTriggers
     {
         internal static int Sos, Counters, Procs, DeathCasts, Swaps, Drains, Flinches;
+        internal static int CounterOffers, CounterRolls, CounterReady, CounterEffect;
         internal static string LastNote = "";
         static readonly HashSet<IntPtr> sosDone = new HashSet<IntPtr>();
         static readonly Dictionary<IntPtr, (BattleUnitData Who, int Mp)> freeActs = new Dictionary<IntPtr, (BattleUnitData, int)>();
@@ -222,15 +223,30 @@ namespace BeyondChaos.PR
                     float g = BcJunctionStart.Gauge(t);
                     if (g >= 4) { BcJunctionStart.Atb()?.ChangeATBGaugeByUnitData(t, g / 4); Flinches++; }
                 }
-                if (foes && BcJunction.Rng.Next(4) == 0 && CanAct(t) && Has(t, "counter_all"))
-                    if (Cast(t, a, BcJunctionTests.AttackAbility(), false, "Counter All", BcJunctionEffects.AttackCommand) != null) Counters++;
+                if (foes)
+                {
+                    CounterOffers++;
+                    if (BcJunction.Rng.Next(4) == 0)
+                    {
+                        CounterRolls++;
+                        if (CanAct(t))
+                        {
+                            CounterReady++;
+                            if (Has(t, "counter_all"))
+                            {
+                                CounterEffect++;
+                                if (Cast(t, a, BcJunctionTests.AttackAbility(), false, "Counter All", BcJunctionEffects.AttackCommand) != null) Counters++;
+                            }
+                        }
+                    }
+                }
                 if (Has(a, "discordant"))
                 {
                     int hp = a.BattleUnitDataInfo?.Parameter?.CurrentHP ?? 0;
                     BcJunctionStats.SetLevel(t, BcJunctionMath.Discordant(BcJunctionStats.Level(t), hp));
                 }
                 int cost = act.Ability?.UseValue ?? 0;
-                if (cost > 0 && !act.Ours && !act.Counter && Has(t, "return_magic"))
+                if (cost > 0 && !act.Ours && (!act.Counter || act.Test) && Has(t, "return_magic"))
                 {
                     bool character = BcJunction.IsPlayer(t);
                     if (!character || (t.BattleUnitDataInfo?.Parameter?.CurrentMP ?? 0) >= cost)
@@ -405,7 +421,21 @@ namespace BeyondChaos.PR
         internal static int Death(BattleUnitData dead, BattleUnitData killer)
         {
             int n = 0;
-            if (Has(dead, "immortal") && Cast(dead, dead, Spell("chokesmoke"), true, "Immortal") != null) n++;
+            if (Has(dead, "immortal"))
+            {
+                // PR drops queued actions from a fallen caster. Choke Smoke's BC outcome is
+                // revival as a Zombie; apply it at the death trigger instead.
+                var p = dead.BattleUnitDataInfo?.Parameter;
+                var cc = BattlePlugManager.Instance()?.BattleConditionController;
+                if (p != null && cc != null)
+                {
+                    p.CurrentHP = Math.Max(1, p.CurrentHP);
+                    cc.InterruptRemoveCondition(dead, ConditionType.UnableFight);
+                    cc.InterruptAddCondition(dead, ConditionType.Zombie);
+                    LastNote = $"Immortal: {BcJunction.Who(dead)} rose as a Zombie";
+                    n++;
+                }
+            }
             if (Has(dead, "final_spiral") && Cast(dead, dead, Spell("spiraler"), true, "Final Spiral") != null) n++;
             if (Has(dead, "final_esper"))
             {

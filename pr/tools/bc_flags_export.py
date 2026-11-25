@@ -101,12 +101,12 @@ PORT = {
     "l": "yes",                     # Blitz inputs (PrKit SnesBlitzInputs)
     "n": "yes",                     # window colours (bc_palettes)
     "levelcap": "partly",           # the cap (BcLevelCap); EXP split and the Status screen's next level: not yet
-    "supernatural": "partly",       # natural magic lists (bc_codes); starting Lores, teaching at join: not yet
+    "supernatural": "yes",          # starting Lores from the seed; BcSkills teaches them on joins and in the field
     "u": "partly",                  # Umaro's risk moves; Storm and Umaro's equipment: not yet
     "collateraldamage": "partly",   # breaks, Fight + Item, monsters' items; Tools not yet
     "electricboogaloo": "partly",   # as `i`; skills that aren't magic as item spells: to check
     "dearestmolulu": "partly",      # no encounters; the Moogle Charm's battle every step: not yet
-    "dancingmaduin": "partly",      # the Paladin Shield's spell; which characters may equip each esper: not yet
+    "dancingmaduin": "yes",         # Paladin Shield and the 27 esper equip masks (bc_data, BcEspers)
     # bc-sprites (2026-11-20): makeover and its options, s, c's colours (names: porter character/monster names)
     "makeover": "yes", "s": "yes", "c": "yes", "remonsterate": "yes",
     # no bearing / later (the reasons are in PORT_NOTE)
@@ -219,6 +219,7 @@ def export(out=OUT):
     flags, sections = {}, []
     by_cat = {}
     port_of = {**PORT, **audit_ports({f.name for f in normal})}      # the audit wins where it has the flag
+    port_of.update({"dancingmaduin": "yes", "supernatural": "yes"})  # implemented after the 2026-11-21 audit
     for f in normal:
         if f.category in HIDDEN_CATEGORIES:
             continue

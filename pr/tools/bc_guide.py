@@ -92,7 +92,9 @@ def guide_script(count):
         ops += [S.op("Msg", s=[GUIDE_KEY.format(0)]), S.op("Select"),
                 S.op("Branch", i=[0, 1, "@no"], s=["MessageSelection", "＝", "imm"])]
         ops += [S.op("Msg", s=[GUIDE_KEY.format(n)]) for n in range(1, count)]
-    ops += [S.label("no"), S.op("Exit")]
+    # A branch directly to Exit leaves the question window visible over a
+    # player-controlled field. Close it on both the Yes and No paths.
+    ops += [S.label("no")] + ([S.op("MsgClose")] if count else []) + [S.op("Exit")]
     S._resolve(ops, 0)
     return {"SystemFlag": {"SkipInitialize": 0, "KeepPlayerPuppet": 0, "KeepBadStatusVisual": 0, "RidingVehicle": 0},
             "Segments": [{"Label": "Main", "EntryPoint": 0, "Count": len(ops)}],

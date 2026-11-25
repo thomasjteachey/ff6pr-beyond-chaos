@@ -16,7 +16,9 @@ namespace BeyondChaos.PR
     //   N times / chain of a combo     each round is A then B
     // Each extra act is a copy of the player's own (BattleActData's copy constructor: the same unit,
     // targets and command) queued the way the game queues the player's act (BattleActExection.
-    // SetBattleActData), with the combo's next skill in its ability list. Acts the PR makes itself from
+    // SetBattleActData), with the combo's next skill in an ability list of its own: the copy constructor
+    // shares the player's list, so clearing it changed every act of the command (bc-selftest-4: "Arise +
+    // Cyclonic" cast Cyclonic twice, three rounds of it Cyclonic six times). Acts the PR makes itself from
     // an act (a random command's pick: BattleFunction46.CreateAbility) carry no command, so they never
     // come back here.
     // BC's targeting variants are data (the row's ability is a copy with the command's targeting:
@@ -102,10 +104,12 @@ namespace BeyondChaos.PR
                         var copy = new BattleActData(battleActData);
                         var id = ability == 0 ? first : ability;
                         var a = Last.Data.Master.MasterManager.Instance?.GetData<Last.Data.Master.Ability>(id);
-                        if (a != null && copy.abilityList != null)
+                        if (a != null)
                         {
-                            copy.abilityList.Clear();
-                            copy.abilityList.Add(a);
+                            // a new list: the copy's is the player's own (never Clear it)
+                            var own = new Il2CppSystem.Collections.Generic.List<Last.Data.Master.Ability>();
+                            own.Add(a);
+                            copy.abilityList = own;
                         }
                         if (randomTarget) PickOne(copy, targets);
                         __instance.SetBattleActData(copy);
@@ -165,7 +169,7 @@ namespace BeyondChaos.PR
                     if (id == 0) return "ok: skipped (no combo command in this seed)";
                     var c = BcCommands.TestCommands[id].Command;
                     var got = Got(id, t0);
-                    var want = new[] { c.Abilities[0], c.Abilities[1], c.Abilities[0], c.Abilities[1], c.Abilities[0], c.Abilities[1] };
+                    var want = BcBattleRules.ActAbilities(c.Ability, BcCommands.Plan(c, "combo", () => false)).ToArray();
                     if (got.Count < want.Length) return null;
                     BcCommands.TestCommands.Remove(id);
                     var seq = got.Take(want.Length).Select(a => a.Abilities.FirstOrDefault()).ToArray();
@@ -178,7 +182,7 @@ namespace BeyondChaos.PR
                     var s = BcSeeds.Active.Commands[id];
                     BcCommands.TestCommands[id] = (new BcSeeds.Command { Kind = "multiple", Count = 3, Name = s.Name, Ability = s.Ability, Abilities = s.Abilities }, "combo", false);
                     Use(id, 1);
-                });
+                }, timeout: 90);
             }
             {
                 int id = 0, of = 0;
@@ -305,10 +309,13 @@ namespace BeyondChaos.PR
                         ? $"ok: {c.Name} ({c.Ability}) rolled {abilities[1]}"
                         : $"FAILED: acts {string.Join(" ", abilities)} ({c.Name}: {c.Ability} of [{string.Join(" ", c.Abilities)}])";
                 case "combo":
-                    if (got.Count < c.Abilities.Length) return null;
-                    return abilities.Take(c.Abilities.Length).SequenceEqual(c.Abilities)
-                        ? $"ok: {c.Name}: {string.Join(" then ", abilities.Take(c.Abilities.Length))}"
-                        : $"FAILED: acts {string.Join(" ", abilities)}, wanted {string.Join(" ", c.Abilities)}";
+                {
+                    var seq = BcBattleRules.ActAbilities(c.Ability, BcCommands.Plan(c, "combo", () => true));
+                    if (got.Count < seq.Count) return null;
+                    return abilities.Take(seq.Count).SequenceEqual(seq)
+                        ? $"ok: {c.Name}: {string.Join(" then ", abilities.Take(seq.Count))}"
+                        : $"FAILED: acts {string.Join(" ", abilities)}, wanted {string.Join(" ", seq)}";
+                }
                 case "chain":
                     // the coin is BC's: at least one act; the rest get 15 s
                     if (got.Count < 1 || UnityEngine.Time.realtimeSinceStartup - t0 < 15) return null;

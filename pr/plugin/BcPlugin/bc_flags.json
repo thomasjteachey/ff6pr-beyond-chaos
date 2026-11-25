@@ -638,7 +638,7 @@
    "label": "Restricted espers",
    "code": "dancingmaduin",
    "help": "Espers can only be equipped by specific characters. Choose the minimum amount of characters per Esper. Usually changes Paladin Shld spell. \nRandom chooses the same random minimum for all Espers; Chaos chooses them separately.",
-   "port": "partly",
+   "port": "yes",
    "type": "str",
    "choices": [
     "off",
@@ -1203,7 +1203,7 @@
    "label": "Natural magic for every caster",
    "code": "supernatural",
    "help": "Makes it so that any character with the Magic command will have natural magic.",
-   "port": "partly",
+   "port": "yes",
    "type": "bool",
    "requires": [
     {

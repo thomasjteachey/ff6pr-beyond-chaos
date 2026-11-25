@@ -368,25 +368,40 @@ namespace BeyondChaos.PR
                 }, timeout: 10);
             }
             {
+                // bc-selftest-2 and -4: "no popup made" was read a second after: by then the popup had played out and
+                // Unity's == null said so (a destroyed object). Made / taken are noted when it's made; the colour is read
+                // while it lives (the tint runs per frame, BcMagicNumbers.Update)
                 ViewDamageEntity view = null;
                 float t0 = 0;
+                bool made = false;
+                int tinted0 = 0, violet = -1, images = 0;
                 BcSelfTests.Add("codes: magicnumbers", () =>
                 {
+                    if (view != null && !view.WasCollected)
+                        try
+                        {
+                            var g = view.GetComponentsInChildren<UnityEngine.UI.Graphic>(true);
+                            images = g.Length;
+                            violet = Math.Max(violet, g.Count(x => x != null && Math.Abs(x.color.b - 1f) < 0.01f && Math.Abs(x.color.r - 0.78f) < 0.01f));
+                        }
+                        catch (Exception) { }
                     if (UnityEngine.Time.realtimeSinceStartup - t0 < 1) return null;
                     BcMagicNumbers.TestOn = false;
-                    if (view == null) return "FAILED: no popup made";
-                    var g = view.GetComponentsInChildren<UnityEngine.UI.Graphic>(true);
-                    var tinted = g.Count(x => x != null && Math.Abs(x.color.b - 1f) < 0.01f && Math.Abs(x.color.r - 0.78f) < 0.01f);
-                    return BcMagicNumbers.Tinted > 0 ? $"ok: the MP damage popup taken ({BcMagicNumbers.Tinted}); {tinted} of {g.Length} images violet"
-                                                     : "FAILED: the popup wasn't taken for tinting";
+                    if (!made) return "FAILED: BattleUtility.CreateDamageView made no popup";
+                    int taken = BcMagicNumbers.Tinted - tinted0;
+                    string colour = violet < 0 ? "its images not read (gone before the first poll)" : $"{violet} of {images} images violet";
+                    return taken > 0 ? $"ok: the MP damage popup taken ({taken}); {colour}" : $"FAILED: the popup wasn't taken for tinting ({colour})";
                 }, () =>
                 {
                     t0 = UnityEngine.Time.realtimeSinceStartup;
+                    tinted0 = BcMagicNumbers.Tinted;
+                    violet = -1;
                     BcMagicNumbers.TestOn = true;
                     var target = BcSelfTests.LivingEnemies().FirstOrDefault();
                     BcMagicNumbers.Basic_Prefix(Last.Systems.HitType.MPHit);
                     try { view = BattleUtility.CreateDamageView(target, 123, false, false); }
                     finally { BcMagicNumbers.Basic_Postfix(); }
+                    made = !ReferenceEquals(view, null) && view.Pointer != IntPtr.Zero;
                 }, timeout: 10);
             }
         }
@@ -448,6 +463,11 @@ namespace BeyondChaos.PR
             var worn = armors.FirstOrDefault(a => a.WearConditionGroupId != 0 && a.Strength == 0);
             if (strong == null || worn == null) return "FAILED: no test relic in the armor table";
             int id = who.characterStatusId;
+            // bc-selftest-4: "Strength 29 -> 32 with armor 5 (+1)": that seed's mementomori gave character 1 a relic of
+            // its own (armor 84), counted in the 29 and replaced by the test relic; so "before" is with no relic at all
+            var seeds = BcMementoMori.RelicOf(p);
+            int with = p.ConfirmedPower();
+            BcMementoMori.TestRelics[id] = 0;
             int before = p.ConfirmedPower();
             int n0 = p.GetEquipmentConfirmedConditionList()?.Count ?? 0;
             try
@@ -456,8 +476,9 @@ namespace BeyondChaos.PR
                 int after = p.ConfirmedPower();
                 BcMementoMori.TestRelics[id] = worn.Id;
                 int n1 = p.GetEquipmentConfirmedConditionList()?.Count ?? 0;
-                bool ok = after == Math.Min(255, before + strong.Strength) && n1 > n0;
-                return (ok ? "ok: " : "FAILED: ") + $"Strength {before} -> {after} with armor {strong.Id} (+{strong.Strength}); worn statuses {n0} -> {n1} with armor {worn.Id}";
+                bool ok = after == BcBattleRules.AddStat(before, strong.Strength) && n1 > n0;
+                string own = seeds == null ? "no relic from the seed" : $"the seed's relic armor {seeds.Id} ({seeds.Strength:+0;-0;0}): {with}";
+                return (ok ? "ok: " : "FAILED: ") + $"Strength {before} -> {after} with armor {strong.Id} (+{strong.Strength}); worn statuses {n0} -> {n1} with armor {worn.Id}; {own}";
             }
             finally { BcMementoMori.TestRelics.Remove(id); }
         }
@@ -623,7 +644,11 @@ namespace BeyondChaos.PR
             var who = p?.parent;
             if (who == null) return null;
             int id = who.characterStatusId;
-            if (!TestRelics.TryGetValue(id, out int armor))
+            if (TestRelics.TryGetValue(id, out int armor))
+            {
+                if (armor <= 0) return null;     // the self-test's "no relic"
+            }
+            else
             {
                 if (!Plugin.BcMode || BcSeeds.Active == null) return null;
                 BcBattleData.Refresh();

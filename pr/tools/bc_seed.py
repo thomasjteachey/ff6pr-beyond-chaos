@@ -206,7 +206,25 @@ def pack(port_dir, out, log, keep=False):
     return tables, texts, files, unmanaged
 
 
+def check_bundle():
+    """Run from a player bundle (generator/bundle.json beside tools/): its tools must be the ones it was built with,
+    or its data may not match them (a newer tool expecting a file the bundle lacks)."""
+    import json
+    path = os.path.join(ROOT, "bundle.json")
+    if not os.path.exists(path):
+        return
+    try:
+        want = json.load(open(path, encoding="utf-8")).get("tools")
+    except (OSError, ValueError):
+        return
+    if want and bc_run.tools_stamp(HERE) != want:
+        raise SystemExit("error: this generator's tool scripts aren't the ones its bundle was built with (bundle.json "
+                         "'tools'): its data may not match them. Rebuild the bundle (tools/bc_bundle.py), or reinstall "
+                         "the mod's zip.")
+
+
 def main():
+    check_bundle()
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", default="")
     ap.add_argument("--mode", default="normal")
@@ -425,7 +443,8 @@ def main():
                       # BC shows every reward (its show_coliseum_rewards patch) unless fightclub: then the SNES rule
                       ("coliseum", lambda: seed_info.coliseum(P.VANILLA_ROM, rom, hidden=(lambda b: b != 0)
                                                               if "fightclub" in eff.split() else (lambda b: False))),
-                      (None, lambda: seed_info.monster_chests(P.VANILLA_ROM, rom))):
+                      (None, lambda: seed_info.monster_chests(P.VANILLA_ROM, rom, out,
+                                                                     lambda m: log.write(m + "\n"), make_missing=True))):
         try:
             if key:
                 info[key] = make()

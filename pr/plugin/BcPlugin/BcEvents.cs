@@ -148,6 +148,10 @@ namespace BeyondChaos.PR
                         if (mc.IsFirstClock() && parts.Length > 2)
                             GameText.Set(parts[1], RaceOverText(parts[2]));
                         break;
+                    case "seedinfo":  // BC:seedinfo KEY: the opening's credits text (BC's manage_opening), set live
+                        if (mc.IsFirstClock() && parts.Length > 1)
+                            GameText.Set(parts[1], SeedInfoText());
+                        break;
                     case "totitle":   // BC:totitle: back to the title, the game's own way (MainGame GotoTitle)
                         if (mc.IsFirstClock()) ToTitle();
                         break;
@@ -192,18 +196,74 @@ namespace BeyondChaos.PR
             return string.Join("<P>" + nl, pages);
         }
 
+        // BC's opening credits (randomizer.py manage_opening, 4113-4145): its name and authors, the one-letter flags
+        // (upper case) and FLAGS ON/OFF, the seed as a code (each digit a consonant of ascii_letters without
+        // "aeiouy": 0 b .. 9 m, upper case) and "ver. V" (config.VERSION_ROMAN)
+        internal static string SeedInfoText()
+        {
+            var nl = Environment.NewLine;
+            var seed = BcSeeds.Active;
+            const string consonants = "bcdfghjklm";
+            var digits = new string((seed?.SeedText ?? "").Where(char.IsDigit).ToArray());
+            var code = new string(digits.Select(d => consonants[d - '0']).ToArray()).ToUpperInvariant();
+            var flags = (seed?.Flags ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var letters = new string(flags.Where(f => f.Length == 1 && char.IsLetter(f[0])).Select(f => f[0]).OrderBy(c => c).ToArray())
+                .ToUpperInvariant();
+            Note($"seed display: {code}, flags {letters}");
+            return "BEYOND CHAOS CE" + nl + "by DarkSlash88" + "<P>" + nl +
+                   "Based on Beyond Chaos by Abyssonym" + nl + "and Beyond Chaos EX by SubtractionSoup" + "<P>" + nl +
+                   $"Flags: {letters}" + nl + (flags.Length > 0 ? "FLAGS ON" : "FLAGS OFF") + "<P>" + nl +
+                   $"Seed: {code}" + nl + "ver. V";
+        }
+
+        // BC:totitle asks; Update does it once the script that asked has ended (the field's state change is ignored
+        // while an event runs: bc-race, 2026-11-21, the call logged and the field stayed), the kit harness's way: the
+        // screen faded out, MainGame.ChangeState(GotoTitle), and MainGame.GotoTitle() if no title 15 s later
+        static float titleAsked = -1, titleSent = -1;
+
         internal static void ToTitle()
         {
+            titleAsked = UnityEngine.Time.realtimeSinceStartup;
+            titleSent = -1;
+            Note("race over: back to the title (once the scene ends)");
+        }
+
+        internal static void Update()
+        {
+            if (titleAsked < 0) return;
+            float now = UnityEngine.Time.realtimeSinceStartup;
+            if (UnityEngine.Object.FindObjectOfType<Last.UI.KeyInput.TitleWindowController>() != null)
+            {
+                titleAsked = titleSent = -1;
+                Note("race over: at the title");
+                return;
+            }
             var mg = UnityEngine.Object.FindObjectOfType<MainGame>();
-            var change = typeof(MainGame).GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)
-                .FirstOrDefault(m => m.Name == "ChangeState" && m.GetParameters().Length >= 1 && m.GetParameters()[0].ParameterType.IsEnum);
-            if (mg == null || change == null) { Plugin.L.LogWarning("[bc] events: no way back to the title (MainGame.ChangeState)"); return; }
-            var ps = change.GetParameters();
-            var args = new object[ps.Length];
-            args[0] = Enum.Parse(ps[0].ParameterType, "GotoTitle");
-            for (int i = 1; i < ps.Length; i++) args[i] = ps[i].HasDefaultValue ? ps[i].DefaultValue : null;
-            try { change.Invoke(mg, args); Note("race over: back to the title"); }
-            catch (Exception e) { Plugin.L.LogWarning($"[bc] events: back to the title: {e.InnerException?.Message ?? e.Message}"); }
+            if (mg == null) return;
+            if (titleSent < 0)
+            {
+                if (MapScripts.Busy) return;                 // the scene that asked is still running
+                titleSent = now;
+                UnityEngine.Time.timeScale = 1f;
+                try { Il2CppSystem.Fade.FadeManager.Instance?.FadeOut(0.3f, new UnityEngine.Color(0, 0, 0, 1)); } catch (Exception) { }
+                var change = typeof(MainGame).GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)
+                    .FirstOrDefault(m => m.Name == "ChangeState" && m.GetParameters().Length >= 1 && m.GetParameters()[0].ParameterType.IsEnum);
+                if (change != null)
+                {
+                    var ps = change.GetParameters();
+                    var args = new object[ps.Length];
+                    args[0] = Enum.Parse(ps[0].ParameterType, "GotoTitle");
+                    for (int i = 1; i < ps.Length; i++) args[i] = ps[i].HasDefaultValue ? ps[i].DefaultValue : null;
+                    try { change.Invoke(mg, args); } catch (Exception e) { Plugin.L.LogWarning($"[bc] events: back to the title: {e.InnerException?.Message ?? e.Message}"); }
+                }
+                return;
+            }
+            if (now - titleSent > 15f)
+            {
+                titleSent = now;                             // and every 15 s after, until the title is up
+                var go = typeof(MainGame).GetMethod("GotoTitle", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public, null, Type.EmptyTypes, null);
+                try { go?.Invoke(mg, null); } catch (Exception e) { Plugin.L.LogWarning($"[bc] events: GotoTitle: {e.InnerException?.Message ?? e.Message}"); }
+            }
         }
 
         // a character joins as the game's join calls do (JoinTina = JoinCharacter(1, -1, 1, true, false, false)), then is
@@ -389,7 +449,11 @@ namespace BeyondChaos.PR
                 if (!LiveData.Ready) return "error: the game's data isn't loaded yet";
                 if (a.Length < 2) return "error: bcevgen SEED FLAG...";
                 genId = PrKit.Seeds.SeedLibrary.NewId(a[0]) + "-test";
-                var err = BcSeeds.Gen.Start(a[0], string.Join(" ", a.Skip(1)), BcSeeds.Lib.DirFor(genId), ("mode", "normal"));
+                // "mode=katn" among the flags: BC's mode (katn, dragonhunt...), else normal
+                var modeArg = a.Skip(1).FirstOrDefault(x => x.StartsWith("mode="));
+                var genFlags = a.Skip(1).Where(x => !x.StartsWith("mode="));
+                var err = BcSeeds.Gen.Start(a[0], string.Join(" ", genFlags), BcSeeds.Lib.DirFor(genId),
+                                            ("mode", modeArg != null ? modeArg.Substring(5) : "normal"));
                 return err != null ? "error: " + err : null;
             }
             if (!BcSeeds.Gen.TakeResult(out bool ok, out string error, out string dir)) return null;
@@ -407,6 +471,9 @@ namespace BeyondChaos.PR
             var udm = UserDataManager.Instance();
             string party = "?";
             try { party = string.Join(" ", udm.GetPartyMemberData().ToArray().Select(c => $"{c.characterStatusId}:Lv{c.Parameter.ConfirmedLevel()}")); }
+            catch (Exception) { }
+            string magicite = "?";   // the magicite owned (magic stone ids: content.csv type 9's type_value)
+            try { magicite = string.Join(" ", udm.OwnedMagicStoneList.ToArray().OrderBy(x => x)); }
             catch (Exception) { }
             string owned = "?";      // every playable character the player has (the reserve too)
             try { owned = string.Join(" ", PrKit.Ff6.StartSkills.Owned().Select(c => c.characterStatusId).Distinct().OrderBy(x => x)); }
@@ -458,7 +525,7 @@ namespace BeyondChaos.PR
             }
             catch (Exception e) { lores = $"; lores ? ({e.GetType().Name})"; }
             return $"events [{(r == null ? "no seed events" : string.Join(" ", flags))}]; map {udm?.CurrentMapId} cell {cell}; " +
-                   $"party {party}; owned [{owned}]; gil {udm?.OwendGil}; script {MapScripts.Current} busy {MapScripts.Busy}; shadow kept {ShadowKept}; last {Last}; calls [{string.Join(" | ", RecentCalls)}]{lores}{battle}";
+                   $"party {party}; owned [{owned}]; magicite [{magicite}]; gil {udm?.OwendGil}; script {MapScripts.Current} busy {MapScripts.Busy}; shadow kept {ShadowKept}; last {Last}; calls [{string.Join(" | ", RecentCalls)}]{lores}{battle}";
         }
     }
 }

@@ -22,9 +22,12 @@ namespace BeyondChaos.PR
             public Dictionary<int, int> MonsterChests = new Dictionary<int, int>();   // chest flag -> party (ChestBattles)
             public HashSet<string> Boxes = new HashSet<string>();            // the SNES boxes' PR scripts
             public Dictionary<int, int> EsperBonusVanilla = new Dictionary<int, int>(), EsperBonus = new Dictionary<int, int>();
+            public Dictionary<int, int[]> EsperEquip = new Dictionary<int, int[]>();   // dancingmaduin: magicite content id -> allowed status ids
             public Dictionary<int, int[]> Coliseum = new Dictionary<int, int[]>();
             public Dictionary<string, int[]> CommandWeapons = new Dictionary<string, int[]>();
             public Dictionary<int, int> AuctionItems = new Dictionary<int, int>();   // sale's vanilla content -> BC's (bc_data)
+            public HashSet<int> NaturalMoved = new HashSet<int>();           // characters whose natural magic BC changed (bc_data)
+            public List<int> StartLores = new List<int>();                   // BC's starting Lores with o/supernatural (bc_data)
             public Dictionary<int, Command> Commands = new Dictionary<int, Command>();   // BC's commands by PR command id
             public List<(string Title, string[] Lines)> Guide = new List<(string, string[])>();   // tools/bc_guide.py
             public int GuideMessages;                                        // the in-game guide's messages (sc_bc_guide; BcGuide)
@@ -89,6 +92,9 @@ namespace BeyondChaos.PR
                 foreach (var x in eb.GetProperty("vanilla").EnumerateArray()) s.EsperBonusVanilla[x[0].GetInt32()] = x[1].GetInt32();
                 foreach (var x in eb.GetProperty("seed").EnumerateArray()) s.EsperBonus[x[0].GetInt32()] = x[1].GetInt32();
             }
+            if (r.TryGetProperty("esper_equip", out var eeq) && eeq.ValueKind == JsonValueKind.Object)
+                foreach (var p in eeq.EnumerateObject())
+                    s.EsperEquip[int.Parse(p.Name)] = p.Value.EnumerateArray().Select(x => x.GetInt32()).ToArray();
             if (r.TryGetProperty("coliseum", out var col))
                 foreach (var x in col.EnumerateArray())
                     s.Coliseum[x[0].GetInt32()] = new[] { x[1].GetInt32(), x[2].GetInt32(), x[3].GetInt32(), x[4].GetInt32(), x[5].GetInt32(),
@@ -99,6 +105,10 @@ namespace BeyondChaos.PR
             if (r.TryGetProperty("auction_items", out var auc) && auc.ValueKind == JsonValueKind.Object)
                 foreach (var p in auc.EnumerateObject())
                     if (int.TryParse(p.Name, out int sale) && p.Value.ValueKind == JsonValueKind.Number) s.AuctionItems[sale] = p.Value.GetInt32();
+            if (r.TryGetProperty("natural_moved", out var nm) && nm.ValueKind == JsonValueKind.Array)
+                foreach (var x in nm.EnumerateArray()) s.NaturalMoved.Add(x.GetInt32());
+            if (r.TryGetProperty("start_lores", out var sl) && sl.ValueKind == JsonValueKind.Array)
+                foreach (var x in sl.EnumerateArray()) s.StartLores.Add(x.GetInt32());
             if (r.TryGetProperty("guide", out var guide) && guide.ValueKind == JsonValueKind.Array)
                 foreach (var g in guide.EnumerateArray())
                     s.Guide.Add((g.GetProperty("title").GetString(),

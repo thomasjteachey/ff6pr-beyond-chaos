@@ -34,10 +34,15 @@ namespace BeyondChaos.PR
                                      postfix: new HarmonyMethod(typeof(BcData), nameof(GetItem_Postfix)));
             PrKit.Harness.Register("bcdata", _ => Check(),
                 "bcdata: the game's own Colosseum lookups against the seed's matches, the Runic/Bushido weapon lists, the auction's sales");
+            BcSkills.Patch(h);      // o/w: rages after wins, o: shared sets, lores and dances after wins
         }
 
         // per frame (BcRunner): the weapon lists follow the active seed
-        public static void Update() => SnesCommandWeapons.Poll();
+        public static void Update()
+        {
+            SnesCommandWeapons.Poll();
+            BcSkills.Update();      // o/w: the party's skill sets (kit StartSkills, SnesRages), natural magic BC changed
+        }
 
         public static void GetItem_Prefix(global::Last.Interpreter.MainCore mc, out int __state)
         {

@@ -35,7 +35,7 @@ KEY = "BC_EV_{}_{:02d}"            # the seed's lines (system_en): BC_EV_<flag>_
 # the flags this module ports (BC option names), in the order apply() runs them
 # (thescenarionottaken: its own work, bc-13 "Divergent paths"; morefanatical: with `d`, bc-12)
 FLAGS = ["lessfanatical", "shadowstays", "rushforpower", "h", "j", "k", "regionofdoom", "airship",
-         "worringtriad", "r", "mimetime", "notawaiter", "alasdraco"]
+         "worringtriad", "r", "mimetime", "notawaiter", "alasdraco", "christmas", "halloween"]
 
 # ---------------------------------------------------------------------------------------------------------
 # the PR files any flag may change: every one is in the baseline as vanilla's (same list for every seed)
@@ -586,8 +586,11 @@ def prepare(capture):
         import dialoguemanager as D
         before, flags = dict(D.dialogue_vars), set(D.dialogue_flags)
         out = opera(*a, **kw)
+        import musicinterface
+        rafters = re.search(r"Opera Rafters:\s*(.+)", getattr(musicinterface, "opera_log", "") or "")
         _CAPTURE["opera"] = {"vars": {k: v for k, v in D.dialogue_vars.items() if before.get(k) != v},
-                             "flags": sorted(set(D.dialogue_flags) - flags | {f for f in D.dialogue_flags if f.endswith("plu")})}
+                             "flags": sorted(set(D.dialogue_flags) - flags | {f for f in D.dialogue_flags if f.endswith("plu")}),
+                             "rafters": rafters.group(1).strip().lower() if rafters else None}
         return out
     randomizer.manage_opera = manage_opera
 
@@ -1451,6 +1454,29 @@ def opera_lines(story, vars_, flags):
     return out
 
 
+# alasdraco's prop: BC's object on the rafters in Ultros's place of the 4-ton weight (its opera log "Opera Rafters"),
+# the weight's object in the opera's three event layers (Map_20161_5: asset 157) given the PR asset the kit learned
+# for BC's SNES sprite (event_translate.sprite_assets). BC's book and rat have no PR asset learned: the weight stays.
+# The balcony's bouquet has no object in the PR's maps to re-skin (its words carry BC's item: {operaItem}).
+RAFTER_ASSETS = {"letter": 94, "mini statue": 103, "baby": 9, "4 ton weight": 157, "fire": 24}
+RAFTER_LAYERS = [("map_20161", "Map_20161", "Map_20161_5", f) for f in ("ev_e_0330.json", "ev_e_0341.json", "ev_e_0344.json")]
+MAP_FILES["alasdraco"] = list(RAFTER_LAYERS)
+
+
+def opera_rafters(ctx, item):
+    asset = RAFTER_ASSETS.get(item or "")
+    if not asset or asset == 157:
+        return None
+    n = 0
+    for g, f, sub, name in RAFTER_LAYERS:
+        doc = ctx.map_file(MAP_REL.format(group=g, folder=f, sub=sub, file=name))
+        for _, o, pr in _objects(doc):
+            if pr.get("asset_id") == 157:
+                _set_prop(o, "asset_id", asset)
+                n += 1
+    return {"item": item, "asset": asset, "objects": n}
+
+
 # the opera roles' name boxes (story_cha_en): the role -> BC's cast (Maria's lines are (CELES)'s: Celes sings her)
 OPERA_SPEAKERS = {"Impresario": "{Impresario}", "Draco": "{Draco}", "Ralse": "{Ralse}"}
 
@@ -1459,7 +1485,9 @@ def speaker_keys():
     """Every story_cha_en line a seed's events may change (the baseline keeps them as the game has them): the
     opera roles' and the World of Ruin recruit sites' lines."""
     cha = P.messages("story_cha", "en")
-    keys = {k for k, v in cha.items() if v in OPERA_SPEAKERS}
+    h = _holiday()
+    keys = ({k for k, v in cha.items() if v in OPERA_SPEAKERS} | set(h["santa_cha"]) |
+            {k for b in h["spooky"] for k in b["keys"] if k in cha})
     for _, names, _ in SITES.values():
         for name in names:
             keys |= {o["operands"]["sValues"][0] for o in S.load(name)["Mnemonics"] if o["mnemonic"] == "Msg"} & set(cha)
@@ -1626,9 +1654,219 @@ def katn(ctx):
     return {"espers": espers, "lete_river": forced}
 
 
+# --- christmas (BC turns it on by the seed's date: randomizer.py:5532; it's in BC's effective flags)
+# BC's manage_santa: Kefka -> Santa in its first dialogue list, KEFKA -> SANTA (the SNES's speaker prefixes) in its
+# second, and Kefka's battle names. PR: the same lines (data/bc_events_holiday.json: the PR keys of BC's ids), the
+# name boxes of the second list, Kefka's monster name. Its sprites, windows and music are bc-sprites' / bc-music's.
+HOLIDAY_DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "bc_events_holiday.json")
+
+
+def _holiday():
+    with open(HOLIDAY_DATA, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def christmas(ctx):
+    h = _holiday()
+    story = P.messages("story_mes", "en")
+    cha = P.messages("story_cha", "en")
+    system = P.messages("system", "en")
+    lines = {k: re.sub(r"\bKefka\b", "Santa", story[k]) for k in h["santa_text"] if k in story}
+    ctx.story.update({k: v for k, v in lines.items() if v != story[k]})
+    ctx.speakers.update({k: "Santa" for k in h["santa_cha"] if cha.get(k) == "Kefka"})
+    for k in h["santa_monsters"]:
+        if system.get(k) == "Kefka":
+            ctx.lines.append((k, "Santa"))
+    ctx.log(f"christmas: Santa in {len(lines)} lines and {len(h['santa_cha'])} name boxes")
+    return {"lines": len(lines), "speakers": len(h["santa_cha"])}
+
+
+# --- halloween (by the seed's date as christmas). BC's manage_spookiness points 13 event text boxes (5 of them only
+# without notawaiter, whose cuts take those scenes) at the Phantom Train's ghost lines ("...No...escape..." and
+# "Nowhere...to...run..."). PR: the lines of each box it replaced (data/bc_events_holiday.json "spooky": the PR keys of
+# the SNES dialogue there) say the ghost line, with no name box. The demon chocobo is bc-sprites'.
+def halloween(ctx):
+    h = _holiday()
+    story = P.messages("story_mes", "en")
+    ghost = {kind: story.get(key, "") for kind, key in h["spooky_text"].items()}
+    done = 0
+    for box in h["spooky"]:
+        if box["unless_notawaiter"] and ctx.on("notawaiter"):
+            continue
+        for k in box["keys"]:
+            if k in story and ghost.get(box["kind"]):
+                ctx.story[k] = ghost[box["kind"]]
+                ctx.speakers[k] = ""
+                done += 1
+    ctx.log(f"halloween: {done} lines say the ghosts' words")
+    return {"lines": done}
+
+
+# --- Namingway (every seed but the cave modes: BC's namingway(), randomizer.py:4423-4456). BC adds an NPC to both
+# airships (SNES map 7 at 39,12 and map 0x0C at 14,45, sprite 0x24) asking "Rename lead character?" -> the naming
+# screen. PR: the NPC in each airship room's entity_default (snes_maps.to_pr of BC's spot; the PR asset the kit
+# learned for SNES sprite 0x24: event_translate.sprite_assets), its talk script (ours: script table rows 9212-9213)
+# asks the same, then BranchByLeader -> the leader's own naming call (名前入力：<name>).
+NAMERS = {"sc_bc_namer_bj": ("map_20171", "Map_20171", "Map_20171_1", (39, 16), 9212),    # the Blackjack (SNES 7)
+          "sc_bc_namer_fa": ("map_20391", "Map_20391", "Map_20391_1", (14, 45), 9213)}    # the Falcon (SNES 0x0C)
+NAMER_ASSET = 12                      # SNES NPC sprite 0x24 in the PR (sprite_assets: 12, then 29)
+for _n, (_g, _f, _sub, _, _) in NAMERS.items():
+    NEW_SCRIPTS[_n] = (_g, _f, _sub)
+MAP_FILES["namingway"] = [(g, f, sub, "entity_default.json") for g, f, sub, _, _ in NAMERS.values()]
+
+
+def namer_script(name, ask, yes, no):
+    ops = [S.label("Main"), S.op("Msg", i=[0, 2], s=[ask]), S.op("Select", s=[yes, no]), _choice(1, "@end")]
+    ops += [S.op("BranchByLeader", i=[c + 1, f"@name_{c + 1}"]) for c in range(14)]
+    ops += [S.op("Exit")]
+    for c in range(14):
+        ops += [S.label(f"name_{c + 1}"), S.op("SysCall", s=["名前入力：" + PR_NAMES[c]]), S.op("Exit")]
+    ops += [S.label("end"), S.op("Exit")]
+    S._resolve(ops, 0)
+    sc = empty_script(name, "Beyond Chaos: Namingway (rename the lead character)")
+    sc["Mnemonics"] = ops
+    sc["Segments"] = [{"Label": "Main", "EntryPoint": 0, "Count": len(ops)}]
+    return sc
+
+
+def namingway(ctx):
+    ask = ctx.line("namingway", "Rename lead character?")
+    yes, no = ctx.line("namingway", "Yes"), ctx.line("namingway", "No")
+    with open(os.path.join(P.VANILLA, *GOGO_TEMPLATE.split("/")), encoding="utf-8") as f:
+        tpl = next(o for _, o, pr in _objects(json.load(f)) if pr.get("asset_id") == 132)
+    t = ctx.table("script")
+    for name, (group, folder, sub, (x, y), sid) in sorted(NAMERS.items()):
+        ctx.set_script(name, namer_script(name, ask, yes, no))
+        doc = ctx.map_file(MAP_REL.format(group=group, folder=folder, sub=sub, file="entity_default.json"))
+        layer = next(l for l in doc["layers"] if l.get("type") == "objectgroup") if any(
+            l.get("type") == "objectgroup" for l in doc["layers"]) else next(
+            sl for l in doc["layers"] for sl in l.get("layers", []) if sl.get("type") == "objectgroup")
+        objs = list(_objects(doc))
+        npc = copy.deepcopy(tpl)
+        npc["id"] = max([o["id"] for _, o, _ in objs] or [0]) + 1
+        npc["x"] = x * 16
+        npc["y"] = (y + 1) * 16 if "gid" in npc else y * 16
+        for k, v in (("asset_id", NAMER_ASSET), ("script_id", sid), ("direction", 4),
+                     ("entity_id", max([pr.get("entity_id", 0) for _, _, pr in objs] or [0]) + 1)):
+            _set_prop(npc, k, v)
+        _set_prop(npc, "message_key", "", "string")
+        layer["objects"].append(npc)
+        t.rows[sid] = {"id": str(sid), "script_name": name}
+    ctx.log("namingway: the renaming NPC on both airships")
+    return {"rooms": [v[2] for v in NAMERS.values()]}
+
+
+# --- Gau's auto-recruit (o, w or t: every preset; BC randomizer.py:5564-5568 auto_recruit_gau(stays_in_wor=not r
+# and not mimetime), AutoRecruitGauSub at :377-398). BC's three patches, as the US ROM has them:
+#   CB/C19C (Gau's first scene, SNES map 156: CB/C188 `3F 0B 00` party_char Gau party 0, the naming, then the run-off):
+#     a call to BC's CF/E1A `50 BC 59 10` (the tint/fade it displaced) `3F 0B 01` (Gau into party 1) `D4 FB`
+#     `B8 49` FE: Gau stays with the party, his recruit done.
+#   C2/4856 `89 FF`: the Veldt battles' "Gau joins after a battle" check (the dried-meat recruit) never fires.
+#   CA/5324 `D4 FB` (with stays_in_wor): his bit kept through the collapse: BC's free World of Ruin character
+#     (randomizer.py:5985-5988: wor_free_char = 0xB with o/w/t), at the Falcon.
+# PR: his first scene sc_e_0218_2 ([35] メンバー加入：ガウ, [39] メンバー離脱：ガウ: he runs off) keeps him ([39] a Nop)
+# and marks the dried-meat recruit done (ScenarioFlag1 126, set by sc_e_0239_b [105] before its join), so the Veldt's
+# recruit scene never comes; in the World of Ruin he rejoins as the Falcon rises (as r's Falcon site: falcon_recruit),
+# unless r (its own Falcon character) or mimetime (the Zone Eater holds him).
+GAU_FIRST = "sc_e_0218_2"
+GAU_RECRUITED = ("ScenarioFlag1", 126)
+SCRIPTS["gau"] = [GAU_FIRST, FALCON_SCENE]
+
+
+def gau(ctx):
+    sc = ctx.script(GAU_FIRST)
+    ms = sc["Mnemonics"]
+    at = next(k for k, o in enumerate(ms) if o["mnemonic"] == "SysCall" and o["operands"]["sValues"][0] == "メンバー離脱：ガウ")
+    assert any(o["mnemonic"] == "SysCall" and o["operands"]["sValues"][0] == "メンバー加入：ガウ" for o in ms[:at]), \
+        "Gau's first scene changed"
+    ms[at] = S.op("Nop", label=ms[at].get("label", ""), kind=ms[at].get("type", 1))
+    S.hook(sc, at, "bc_gau_stays", [_flag(*GAU_RECRUITED)])
+    wor = not ctx.on("r") and not ctx.on("mimetime")
+    if wor:
+        falcon_recruit(ctx, 0x0B)
+    ctx.log(f"gau: auto-recruited at his first scene{'; rejoins with the Falcon' if wor else ''}")
+    return {"wor": wor}
+
+
+# --- The auction house (every seed but the cave modes: BC's manage_auction_house, randomizer.py:4163-4195, called
+# at :5792). Vanilla's sale is a chain of blocks (CB/4EA4 the entry calls the first), each "if <sold or world> go to
+# X" and/or a 50% random_jump to the next block, else its own sale; BC rewrites both pointers of each block (its "two
+# ways": the condition's and the random jump's) into a new order, the espers first:
+#   entry -> Zoneseek (CB/5312: if bought, or 50% -> Golem) -> Golem (5197: if bought, or 50% -> Golem WoR) ->
+#   Golem WoR (58FA: same check -> Zoneseek WoR) -> Zoneseek WoR (5A39: if bought, or 50% -> Cherub Down) ->
+#   Cherub Down (4ECC: World of Ruin -> Hero Ring; 50% -> Chocobo) -> Chocobo (501D: 50% -> Cure Ring) -> Cure Ring;
+#   Hero Ring (55B0: 50%, or bought -> Zephyr Cape) -> Zephyr Cape (5B85: bought, or 50% -> 1/1200 Airship) ->
+#   1/1200 Airship (570C: 50% -> Imp Robot) -> Imp Robot.
+# PR: the dispatcher sc_e_0422 draws one sale at random among the world's (SetRandomValue; a bought esper or ring
+# draws again: its [5]); ours runs BC's chain at [6] instead, with the PR's sold flags (Golem ScenarioFlag1 204,
+# Zoneseek 205, Hero Ring ScenarioFlag2 121, Zephyr Cape 120) and world flag (ScenarioFlag2 41), each node's 50% as
+# SetRandomValue 1..2, then the PR's own sale (its label in sc_e_0422: the sale or its ChangeScript).
+AUCTION = "sc_e_0422"
+AUCTION_SALES = {"golem": 22, "zoneseek": 108, "cherub": 111, "chocobo": 113, "cure": 115, "zephyr": 117, "hero": 120,
+                 "airship": 123, "imp": 125}                   # the sales' labels in sc_e_0422 (asserted below)
+AUCTION_CHAIN = [   # (node, sold flag or None, its sale, the next node; "world": Cherub Down's World of Ruin test)
+    ("zoneseek", ("ScenarioFlag1", 205), "zoneseek", "golem"),
+    ("golem", ("ScenarioFlag1", 204), "golem", "golem_wor"),
+    ("golem_wor", ("ScenarioFlag1", 204), "golem", "zoneseek_wor"),
+    ("zoneseek_wor", ("ScenarioFlag1", 205), "zoneseek", "cherub"),
+    ("cherub", "world", "cherub", "chocobo"),
+    ("chocobo", None, "chocobo", "cure"),
+    ("cure", None, "cure", None),
+    ("hero", ("ScenarioFlag2", 121), "hero", "zephyr"),
+    ("zephyr", ("ScenarioFlag2", 120), "zephyr", "airship"),
+    ("airship", None, "airship", "imp"),
+    ("imp", None, "imp", None),
+]
+SCRIPTS["auction"] = [AUCTION]
+
+
+def auction(ctx):
+    sc = ctx.script(AUCTION)
+    ms = sc["Mnemonics"]
+    labels = {k: ms[i]["label"] for k, i in AUCTION_SALES.items()}
+    assert all(labels.values()) and ms[5]["label"] == "崩壊前判定" and ms[6]["mnemonic"] == "Branch" and \
+        ms[8]["mnemonic"] == "SetRandomValue", "the auction's dispatcher changed"
+    ops = []
+    for node, sold, sale, nxt in AUCTION_CHAIN:
+        skip = f"@bc_auction_{nxt}" if nxt else None
+        ops.append(S.label(f"bc_auction_{node}"))
+        if sold == "world":
+            ops.append(_if("ScenarioFlag2", 41, 1, "@bc_auction_hero"))
+        elif sold:
+            ops.append(_if(sold[0], sold[1], 1, skip))
+        if nxt:
+            ops += [S.op("SetRandomValue", i=[3, 2], s=["MapLocalVariable"]),
+                    S.op("Branch", i=[3, 1, skip], s=["MapLocalVariable", EQ, "imm"])]
+        ops.append(S.op("Jump", i=[AUCTION_SALES[sale]]))
+    S.hook(sc, 6, "bc_auction", ops)              # [5] (a labelled Nop: a bought sale's draw-again) runs on into it
+    ctx.log("auction: BC's sale order (the espers first, each a 50% chance)")
+    return {"nodes": len(AUCTION_CHAIN)}
+
+
+# --- The opening's seed display (every seed: BC's manage_opening, randomizer.py:4113-4145): BC rewrites the opening
+# credits to "BEYOND CHAOS CE by DarkSlash88", the based-on lines, the flags (its one-letter flags, upper case, and
+# FLAGS ON/OFF), the seed as a code (each digit a consonant: 0 b .. 9 m, upper case) and "ver. V"
+# (config.VERSION_ROMAN). PR shows that text alongside the first visible field dialogue in the opening's last
+# scene. Its former Msg at sc_e_0001_4 [5] could strand the credits flight on a black fade: the field scene
+# already has a working message window at [23]. BC:seedinfo fills the line from the active seed and flags.
+OPENING_SEED_SCENE = "sc_e_0001_5"
+SCRIPTS["seedinfo"] = [OPENING_SEED_SCENE]
+
+
+def seedinfo(ctx):
+    sc = ctx.script(OPENING_SEED_SCENE)
+    ms = sc["Mnemonics"]
+    assert ms[23]["mnemonic"] == "Msg" and ms[23]["operands"]["sValues"][0] == "E0001_04_003_a_01", \
+        "the opening's first field dialogue changed"
+    key = ctx.line("seedinfo", "Beyond Chaos CE")
+    S.hook(sc, 23, "bc_seedinfo", [S.op("SysCall", s=[f"BC:seedinfo {key}"]), S.op("Msg", i=[0, 0], s=[key])])
+    return {"key": key}
+
+
 def story_keys():
     """Every story_mes_en line a seed's events may reword (the baseline keeps them as the game has them)."""
-    return sorted(set(OPERA_LINES) | set(TEXT_KEYS))
+    h = _holiday()
+    return sorted(set(OPERA_LINES) | set(TEXT_KEYS) | set(h["santa_text"]) | {k for b in h["spooky"] for k in b["keys"]})
 
 
 def alasdraco(ctx):
@@ -1644,7 +1882,8 @@ def alasdraco(ctx):
         if who in OPERA_SPEAKERS:
             ctx.speakers[key] = opera_fill(OPERA_SPEAKERS[who], vars_, flags)
     cast = {r: _bc_text(vars_.get(r.lower(), "")) for r in ("Maria", "Draco", "Ralse", "Impresario")}
-    part = {"cast": cast, "factions": [_bc_text(vars_.get("operaeast", "")), _bc_text(vars_.get("operawest", ""))],
+    rafters = opera_rafters(ctx, opera.get("rafters"))
+    part = {"rafters": rafters, "cast": cast, "factions": [_bc_text(vars_.get("operaeast", "")), _bc_text(vars_.get("operawest", ""))],
             "item": vars_.get("operaitem", ""), "lines": len(ctx.story)}
     ctx.log(f"alasdraco: {cast}, {part['factions'][0]} vs {part['factions'][1]}, the {part['item']}: "
             f"{part['lines']} lines")
@@ -1680,6 +1919,7 @@ BANON_ITEMS = (0xAFAC9, 0xAFDE7)
 
 def banon(ctx):
     import idmap
+    import bc_gifts
     items = []
     for at in BANON_ITEMS:
         if ctx.rom is not None and ctx.rom[at] == 0x80:
@@ -1696,6 +1936,9 @@ def banon(ctx):
     for k in gets:
         ms[k]["operands"]["iValues"][0] = items[0]
         S.hook(sc, k, "bc_banon", [S.op("GetItem", i=[items[1], 1])])      # then the (BC's) first, as hooked
+    names = [bc_gifts.content_name(item) for item in items]
+    assert all(names), f"Banon's gifts have no item names: {items}"
+    ctx.story["E0062_00_066_a_14"] = f"<CT>Obtained {names[0]}!<P>\\n<CT>Obtained {names[1]}!"
     return items
 
 
@@ -1746,7 +1989,9 @@ def notawaiter(ctx):
 
 HANDLERS = {"lessfanatical": lessfanatical, "shadowstays": shadowstays, "j": j, "k": k, "regionofdoom": regionofdoom,
             "airship": airship, "worringtriad": worringtriad, "notawaiter": notawaiter, "r": r, "mimetime": mimetime,
-            "alasdraco": alasdraco, "texts": always_texts, "mode:katn": katn, "mode:dragonhunt": dragonhunt}
+            "alasdraco": alasdraco, "texts": always_texts, "mode:katn": katn, "mode:dragonhunt": dragonhunt,
+            "christmas": christmas, "halloween": halloween, "namingway": namingway, "gau": gau, "auction": auction,
+            "seedinfo": seedinfo}
 
 
 def apply(out, flags, rom=None, vanilla_rom=None, spoiler="", capture=None, log=print, mode="normal"):
@@ -1755,7 +2000,11 @@ def apply(out, flags, rom=None, vanilla_rom=None, spoiler="", capture=None, log=
     ctx = Ctx(out, flags, rom, vanilla_rom, spoiler, capture, log)
     ctx.mode = mode or "normal"
     ctx.data["mode"] = ctx.mode
-    steps = ["texts"] + [f for f in FLAGS if ctx.on(f)] + ([f"mode:{ctx.mode}"] if f"mode:{ctx.mode}" in HANDLERS else [])
+    steps = ["texts"] + ([] if ctx.on("ancientcave") else ["namingway", "auction"]) + [f for f in FLAGS if ctx.on(f)]
+    if any(ctx.on(f) for f in ("o", "w", "t")) and not ctx.on("ancientcave"):
+        steps.append("gau")
+    steps += [f"mode:{ctx.mode}"] if f"mode:{ctx.mode}" in HANDLERS else []
+    steps.append("seedinfo")
     for flag in steps:
         if flag in HANDLERS:
             keep = (copy.deepcopy(ctx.scripts), copy.deepcopy(ctx.files), len(ctx.lines), copy.deepcopy(ctx.tables),

@@ -237,7 +237,7 @@ def build(out_dir, capture, rom, vanilla_rom=None, home=None, art=None, log=prin
     d = C.data()
     vpal = C.vanilla_palettes(vanilla_rom if vanilla_rom is not None else C._rom())
     art = art or GameArt()
-    out = pr_art.ArtWriter(os.path.join(out_dir, "sprites"))
+    out = pr_art.ArtWriter(os.path.join(out_dir, "sprites"), standalone_battle=True)
     summary = {}
     rec = capture.get("sprites") or {}
     rc = bool(rec.get("reindexed"))

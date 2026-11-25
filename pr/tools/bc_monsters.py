@@ -234,7 +234,7 @@ def build(out_dir, spoiler, rom=None, vanilla=None, home=None, monsters=None, lo
         n_recolors = len(rec)
     if not found:
         return None
-    out = pr_art.ArtWriter(os.path.join(out_dir, "sprites"))
+    out = pr_art.ArtWriter(os.path.join(out_dir, "sprites"), standalone_battle=True)
     for m, group, a, w, h, rgba, pv, thumb in found:
         out.monster(m, group, a, w, h, rgba, pivot=pv, thumb=thumb)
     out.save()

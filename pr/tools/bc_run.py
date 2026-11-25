@@ -100,6 +100,10 @@ def run(rom, seed, mode="normal", flags="", say=print, capture=None, prepare=Non
         import bc_remon
         randomizer.remonsterate = bc_remon.child
         os.environ.pop("FF6_BC_ROMFREE_CHILD", None)
+        # on (the BC lead, 2026-11-21: 22 seeds identical off/on, and 4 forced music rerolls identical);
+        # FF6_BC_MUSIC_FAST=0 turns it off
+        if os.environ.get("FF6_BC_MUSIC_FAST", "1") != "0":
+            fast_music()
         if romfree:
             import bc_romfree
             bc_romfree.patch()
@@ -159,12 +163,67 @@ def run(rom, seed, mode="normal", flags="", say=print, capture=None, prepare=Non
         os.chdir(cwd)
 
 
+MUSIC_MODULES = ("music.mfvitools.insertmfvi", "mfvitools.insertmfvi", "music.musicrandomizer", "musicrandomizer",
+                 "music.johnnydmad", "johnnydmad", "music.jukebox", "jukebox", "musicinterface")
+
+
+def fast_music():
+    """johnnydmad's inserter (music/mfvitools/insertmfvi.py) builds its ROM with byte_insert, which returns
+    data[:p] + new + data[p+n:]: a copy of the whole ~4 MB ROM for every few bytes, thousands of times a seed
+    (16 s of a profiled 84). Here byte_insert edits a bytearray in place instead: the same bytes (a slice assignment
+    past the end extends it as the concatenation does). Safe because every caller reassigns the result to the
+    buffer it passed (insertmfvi's outrom is its own bytearray(inrom); put_somewhere raises before inserting), and a
+    bytes argument keeps BC's own function (mml2mfvi has its own byte_insert for small buffers: untouched).
+    FF6_BC_MUSIC_FAST=0 turns it off (on since 2026-11-21: 22 seeds and 4 forced rerolls identical); tools/bc_parity.py and `bc_remon.py`-style runs check the same seeds."""
+    import importlib
+    for name in ("music.mfvitools.insertmfvi", "mfvitools.insertmfvi"):
+        try:
+            mod = importlib.import_module(name)
+            break
+        except ImportError:
+            mod = None
+    if mod is None or getattr(mod.byte_insert, "_bc_fast", False):
+        return
+    original = mod.byte_insert
+
+    def byte_insert(data, position, newdata, maxlength=0, end=0):
+        if not isinstance(data, bytearray):
+            return original(data, position, newdata, maxlength, end)
+        if position > len(data):
+            data += b"\x00" * (position - len(data))
+        if end:
+            maxlength = end - position + 1
+        if maxlength and len(newdata) > maxlength:
+            newdata = newdata[:maxlength]
+        data[position:position + len(newdata)] = newdata
+        return data
+
+    byte_insert._bc_fast = True
+    for name in MUSIC_MODULES:
+        m = sys.modules.get(name)
+        if m is not None and getattr(m, "byte_insert", None) is original:
+            m.byte_insert = byte_insert
+
+
 # bingoboingo's card settings: BeyondChaos.exe asks for them (its GUI's BingoPrompts / console.py); web mode takes
 # them as randomize()'s keywords and has none of its own (bc_run passed none: `size ** 2` on None, audit gap #2).
 # These are the exe's defaults: every square type (the console's blank answer, "aims"), a 5x5 grid, Normal
 # difficulty (the GUI's preselected choice), one card. Read only by manage_bingo, after the ROM and log: no draws
 # of the seed change.
 BINGO = {"bingo_type": "aims", "bingo_size": 5, "bingo_difficulty": "n", "bingo_cards": 1}
+
+
+def tools_stamp(tools_dir):
+    """A stamp of a generator's tool scripts (every *.py directly in tools_dir, by name and content): bc_bundle writes
+    it into bundle.json, bc_seed compares at its start, so a bundle whose tools were swapped for newer ones (whose data
+    don't match) stops with a clear message instead of a KeyError half-way (QA's laptop, 2026-11-21)."""
+    import hashlib
+    h = hashlib.sha1()
+    for name in sorted(n for n in os.listdir(tools_dir) if n.endswith(".py")):
+        h.update(name.encode() + b"\0")
+        with open(os.path.join(tools_dir, name), "rb") as f:
+            h.update(f.read())
+    return h.hexdigest()
 
 
 def effective_flags(randomizer):

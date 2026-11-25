@@ -23,6 +23,7 @@ import prdata as P  # noqa: E402
 import seed_live  # noqa: E402
 
 DANCE_NAMES = 0x26FF9D, 12, 8
+DANCE_ASSOC = 0x2D8E5B         # SNES background id -> dance (0-7); BC changes Colosseum and Thamasa with g
 DANCE_KEYS = [f"MSG_MAGIC_NAME_{146 + i}" for i in range(8)]
 START_GIL = 0x0C9A93          # BC: 84 lo hi (give gil); vanilla's own 84 B8 0B is 3000, the PR's INIT_GIL too
 TABLES = ["initialize_data"]  # beyond seed_live.MANAGED_TABLES (bc_live adds it)
@@ -38,6 +39,8 @@ CORAL_KEYS = ("MSG_KEY_NAME_06", "MSG_KEY_INF_09")
 CORAL_LINES = ["E0943_00_540_a_02", "E0943_00_540_a_11", "E0948_00_541_a_01", "E0948_00_541_a_02",
                "E0948_00_541_a_03", "E0948_00_541_a_04"]
 STORY = "story_mes_en"
+START_LORES = 0x26F564, 140   # ED/F564: the Lores known at the start (24 bits) -> PR Lore abilities 140 + n
+ESPER_ALLOCATIONS = 0x3F858    # 27 little-endian character masks; BC's dancingmaduin
 # the auctioneer's announcement of each sale (story_mes_en), by the sale's vanilla PR content
 AUCTION_LINES = {287: "E0424_00_111_a_01", 288: "E1055_00_111_a_01", 291: "E0751_00_111_a_01", 300: "E0752_00_111_a_01"}
 STORY_KEYS = CORAL_LINES + sorted(AUCTION_LINES.values())   # every story line a seed may change (the baseline's)
@@ -46,6 +49,33 @@ STORY_KEYS = CORAL_LINES + sorted(AUCTION_LINES.values())   # every story line a
 def dance_names(rom):
     at, size, n = DANCE_NAMES
     return [S.decode_name(rom[at + i * size:at + (i + 1) * size]).strip() for i in range(n)]
+
+
+def dance_backgrounds(out, rom, vanilla):
+    """Carry BC's changed background-to-dance associations into PR learning rows."""
+    changed = {bg: rom[DANCE_ASSOC + bg] for bg in range(0x40)
+               if rom[DANCE_ASSOC + bg] != vanilla[DANCE_ASSOC + bg] and rom[DANCE_ASSOC + bg] < 8}
+    if not changed:
+        return 0
+    path = os.path.join(out, *seed_live.MASTER_PATH.split("/"), "learning.csv")
+    if not os.path.exists(path):
+        return 0
+    with open(path, encoding="utf-8", newline="") as f:
+        learning = P.Table("learning", f.read())
+    assets = {r["asset_name"]: int(r["id"]) for r in P.Table("battle_background_asset")}
+    by_bg = {assets[f"bg_ff6_{bg + 1:02d}"]: dance for bg, dance in changed.items()
+             if f"bg_ff6_{bg + 1:02d}" in assets}
+    n = 0
+    for row in learning.rows.values():
+        if row["type_id"] == "3" and int(row["value1"]) in by_bg and 494 <= int(row["content_id"]) <= 501:
+            dance = by_bg[int(row["value1"])]
+            if int(row["content_id"]) != 494 + dance:
+                row["content_id"] = str(494 + dance)
+                n += 1
+    if n:
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(learning.to_csv(learning.rows.keys()))
+    return n
 
 
 def _messages(out):
@@ -169,6 +199,10 @@ def apply(out, rom, vanilla, flags, log=print):
             f.write("\r\n".join(lines))
         info["dance_names"] = names
         log(f"bc_data: dances named {', '.join(names)}")
+    backgrounds = dance_backgrounds(out, rom, vanilla)
+    if backgrounds:
+        info["dance_backgrounds"] = backgrounds
+        log(f"bc_data: {backgrounds} dance background associations changed")
     if rom[START_GIL] == 0x84 and rom[START_GIL:START_GIL + 3] != vanilla[START_GIL:START_GIL + 3]:
         gil = rom[START_GIL + 1] | rom[START_GIL + 2] << 8
         path = os.path.join(out, *seed_live.MASTER_PATH.split("/"), "initialize_data.csv")
@@ -202,6 +236,18 @@ def apply(out, rom, vanilla, flags, log=print):
             info["auction_items"] = sales
             auction_lines(out, sales)
             log(f"bc_data: auction sales {sales}")
+    # the Lores known from the start (ED/F564, 24 bits): BC rerolls them with `o` or `supernatural`
+    # (randomizer.py:1557-1586); BcSkills teaches them to the Lore holders (in the PR, Strago starts with his own)
+    on = set(flags.split())
+    if any(w == "dancingmaduin" or w.startswith("dancingmaduin:") for w in on):
+        import idmap as M
+        info["esper_equip"] = {str(M.esper_content(e)): [c + 1 for c in range(14) if mask >> c & 1]
+                                for e in range(27)
+                                for mask in [int.from_bytes(rom[ESPER_ALLOCATIONS + 2 * e:ESPER_ALLOCATIONS + 2 * e + 2], "little")]}
+        log(f"bc_data: restricted {len(info['esper_equip'])} espers by dancingmaduin")
+    if on & {"o", "supernatural"}:
+        info["start_lores"] = [START_LORES[1] + n for n in range(24) if rom[START_LORES[0] + n // 8] >> (n % 8) & 1]
+        log(f"bc_data: start lores {info['start_lores']}")
     moved = natural_moved(out)
     if moved:
         info["natural_moved"] = moved

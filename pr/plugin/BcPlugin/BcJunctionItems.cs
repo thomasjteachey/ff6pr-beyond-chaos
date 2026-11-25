@@ -17,7 +17,7 @@ namespace BeyondChaos.PR
     // inventory (exactly one: if the game takes one too, it's given back), a monster's costs nothing.
     //   Auto-Potion   the holder, hurt (not fatally, not by a status tick, not by its own reaction), drinks a
     //                 Potion (the SNES's; a monster: half the time); with Salve, on all its allies
-    //   Auto-Down     an ally falls: each holder that can act uses a Phoenix Down on it
+    //   Auto-Down     an ally falls (HP to 0 in an act: Landed.Died): each holder that can act uses a Phoenix Down on it
     //   Auto-Revivify an ally turns Zombie: Holy Water
     //   Auto-Remedy   an ally takes Blind, Poison, Imp, Petrify, Silence or Sap: the item for it (Remedy for
     //                 several) (a monster's ally: half the time)
@@ -111,9 +111,10 @@ namespace BeyondChaos.PR
                                              : new List<BattleUnitData> { t };
                     UseItem(t, on, BcJunctionTriggers.Item("potion"), "Auto-Potion");
                 }
-                // Auto-Down / Auto-Revivify / Auto-Remedy: one category a change (Wound first)
+                // Auto-Down / Auto-Revivify / Auto-Remedy: one category a change (Wound first). A fall is HP to 0 here:
+                // the PR gives Wound after the act (bc-selftest-4: no Phoenix Down for a fallen ally); not with Reraise on
                 string key = null, item = null;
-                if (l.Gained(ConditionType.UnableFight)) { key = "auto_down"; item = "fenix"; }
+                if (l.Died && !l.After.Contains(ConditionType.Reraise)) { key = "auto_down"; item = "fenix"; }
                 else if (l.Gained(ConditionType.Zombie)) { key = "auto_revivify"; item = "holywater"; }
                 else
                 {

@@ -37,6 +37,16 @@ namespace BeyondChaos.PR
             return more;
         }
 
+        // Every act of the command in order, by ability: the player's own (the row's first skill), then the plan's
+        // (0: the first again). Each act runs its own skill: BcCommands gives each copy its own ability list
+        // (bc-selftest-4: a shared list made "Arise + Cyclonic" cast Cyclonic twice).
+        public static List<int> ActAbilities(int first, IEnumerable<int> plan)
+        {
+            var all = new List<int> { first };
+            if (plan != null) all.AddRange(plan.Select(a => a == 0 ? first : a));
+            return all;
+        }
+
         // `bcselftest start` filter: comma-separated words; a test runs if its name holds one of the plain words
         // (none: every test) and none of the words starting with "!" ("commands,items" / "!junction")
         public static bool FilterMatches(string testName, string filter)

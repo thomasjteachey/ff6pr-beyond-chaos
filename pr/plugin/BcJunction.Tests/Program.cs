@@ -123,6 +123,24 @@ static class Program
         // Overheal: 900/1000 healed 500 -> 1000 + (400+2)/4 = 1100; a heal that doesn't pass max is a plain heal
         Check(M.OverhealHp(900, 500, 1000) == 1100 && M.OverhealHp(500, 300, 1000) == 800, "overheal");
         Check(M.OverhealHp(1100, 3000, 1000) == 1100 + (1000 + 2) / 4, "overheal from above max: excess capped at max HP");
+        // Repel (bc-selftest-4: the hook moved to the reflect pass; the rule is the same): SNES bit -> PR attribute
+        int[] attr = { 1, 2, 3, 6, 8, 7, 4, 5 };
+        Func<int, bool> fireOnly = b => b == 0, none = b => false;
+        Check(M.RepelBit(new[] { 1 }, attr, fireOnly, false, 20, false, false) == 0, "repel fire: Fire bounces");
+        Check(M.RepelBit(new[] { 2 }, attr, fireOnly, false, 20, false, false) == -1, "repel fire: Ice lands");
+        Check(M.RepelBit(new[] { 2, 1 }, attr, fireOnly, false, 20, false, false) == 0, "repel fire: an ice+fire spell bounces");
+        Check(M.RepelBit(new[] { 1 }, attr, fireOnly, false, 20, true, false) == -1, "repel: never a physical attack");
+        Check(M.RepelBit(new[] { 1 }, attr, fireOnly, false, 20, false, true) == -1, "repel: never a self-cast");
+        Check(M.RepelBit(new int[0], attr, none, true, 30, false, false) == 8, "repel nuke: a non-elemental spell with power");
+        Check(M.RepelBit(new int[0], attr, none, true, 0, false, false) == -1, "repel nuke: not a spell without power");
+        Check(M.RepelBit(new[] { 1 }, attr, none, true, 30, false, false) == -1, "repel nuke: not an elemental spell");
+        Check(M.RepelBit(null, attr, none, false, 30, false, false) == -1, "repel: nothing to repel");
+        // a fall in an act: HP to 0 counts (the PR gives Wound after the act: bc-selftest-4's Auto-Down never fired)
+        Check(M.Fell(1, 0, false, false), "fell: HP 1 -> 0, Wound not given yet");
+        Check(M.Fell(500, 0, false, true) && M.Fell(500, 3, false, true), "fell: Wound given (HP 0, or a Wound attack)");
+        Check(!M.Fell(500, 120, false, false), "fell: hurt, standing");
+        Check(!M.Fell(0, 0, true, true) && !M.Fell(9999, 0, true, true), "fell: already down (a fallen unit's HP topped up by bckeep)");
+        Check(!M.Fell(0, 0, false, false), "fell: at 0 before the act");
         Clock();
         Console.WriteLine($"bc junction math: {passed} passed, {failed} failed");
         return failed == 0 ? 0 : 1;

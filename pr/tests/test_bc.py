@@ -209,8 +209,9 @@ class BcGuideInGame(unittest.TestCase):
         self.assertEqual([m["operands"]["sValues"][0] for m in ms if m["mnemonic"] == "Msg"],
                          [G.GUIDE_KEY.format(n) for n in range(4)])
         branch = next(m for m in ms if m["mnemonic"] == "Branch")
-        # a No goes on after the jump's target: the end
-        self.assertEqual(ms[branch["operands"]["iValues"][2] + 1]["mnemonic"], "Exit")
+        # A No closes the question window before returning player control.
+        no = branch["operands"]["iValues"][2] + 1
+        self.assertEqual([m["mnemonic"] for m in ms[no:no + 2]], ["MsgClose", "Exit"])
         # the school's lesson question is written the same way (its Branch's operands)
         school = S.load("sc_e_0023")["Mnemonics"]
         want = next(m for m in school if m["mnemonic"] == "Branch")["operands"]
@@ -274,8 +275,69 @@ class BcSeedFolder(unittest.TestCase):
             text = open(os.path.join(out, *L.MESSAGE_PATH.split("/"), "system_en.txt"), encoding="utf-8").read()
             for n in range(info["guide_messages"]):
                 self.assertIn(G.GUIDE_KEY.format(n) + "\t", text)
+            # every party the seed names exists (tools/bc_party_refs.py)
+            import bc_party_refs as R
+            self.assertEqual(R.missing(out), {})
         finally:
             shutil.rmtree(os.path.dirname(out), ignore_errors=True)
+
+
+@unittest.skipUnless(os.environ.get("BC_PARTY_SWEEP") == "1", "BC_PARTY_SWEEP=1 makes three seeds (~4 min)")
+class BcPartySweep(unittest.TestCase):
+    """Every monster party a seed sends the player to (random encounters, event and box scripts, the Veldt, chests,
+    the Colosseum: tools/bc_party_refs.py) is in its monster_party.csv, for New Player, Chaotic and Race Insane (the
+    PR dropped ~40 SNES formations; a seed naming one without making it starts a battle the game can't build)."""
+
+    def test_presets(self):
+        import subprocess
+        import bc_party_refs as R
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root, True)
+        for seed, preset in (("9859608359", "New Player"), ("4242424242", "Chaotic Player"), ("1357913579", "Race Insane")):
+            out = os.path.join(root, preset.replace(" ", "_"))
+            p = subprocess.run([sys.executable, os.path.join(PR, "tools", "bc_seed.py"), "--seed", seed, "--preset", preset,
+                                "--out", out], capture_output=True, text=True, encoding="utf-8")
+            self.assertEqual(p.returncode, 0, p.stdout[-2000:] + p.stderr[-2000:])
+            refs = R.refs(out)
+            kinds = {w.split(" ")[0] for ws in refs.values() for w in ws}
+            self.assertTrue({"monster_set", "script", "Veldt", "monster"} <= kinds, (preset, kinds))
+            self.assertEqual(R.missing(out), {}, preset)
+
+
+class BcPartyRefs(unittest.TestCase):
+    """tools/bc_party_refs.py finds a party named anywhere a seed names one and its table lacks."""
+
+    def test_missing(self):
+        import prdata as P
+        import seed_live as L
+        import bc_party_refs as R
+        out = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, out, True)
+        master = os.path.join(out, *L.MASTER_PATH.split("/"))
+        os.makedirs(master)
+        mp = P.Table("monster_party")
+        with open(os.path.join(master, "monster_party.csv"), "w", encoding="utf-8", newline="") as f:
+            f.write(mp.to_csv([1, 2, 3, 4]))
+        ms = P.Table("monster_set")
+        row = dict(next(iter(ms.rows.values())), monster_set1="1", monster_set2="90001")
+        for k in range(3, 7):
+            row[f"monster_set{k}"] = "0"
+        ms.rows = {int(row["id"]): row}
+        with open(os.path.join(master, "monster_set.csv"), "w", encoding="utf-8", newline="") as f:
+            f.write(ms.to_csv(ms.rows.keys()))
+
+        def dump(rel, doc):
+            path = os.path.join(out, *rel.split("/"))
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(doc, f)
+        dump("files/map/sc_test.json", {"Name": "sc_test", "Mnemonics": [
+            {"mnemonic": "EncountBoss", "operands": {"iValues": [90002, 0]}}, {"mnemonic": "Encount", "operands": {"iValues": [2]}}]})
+        dump(R.VELDT, {"beast_field_encount_table": [{"party_table": [
+            {"id": 1, "monster_party_id": 3, "encount_target_party_id": 3, "encount_target_other_ids": [90003]}]}]})
+        dump("bc_seed.json", {"monster_chests": {"207": 90004, "8": 4}, "coliseum": [[300, 1, 2, 90005, 3, 0, 4]]})
+        self.assertEqual(sorted(R.missing(out)), [90001, 90002, 90003, 90004, 90005])
+        self.assertTrue(all(p in R.refs(out) for p in (1, 2, 3, 4)))
 
 
 class BcDataSteps(unittest.TestCase):
@@ -432,18 +494,25 @@ class BcBingo(unittest.TestCase):
     crashing on `size ** 2` with None, and bc_run hands the card over (capture["bingo"]), leaving no file behind."""
 
     def test_bingoboingo_makes_a_card(self):
-        import ff6snes as S
+        import subprocess
         import prdata as P
-        import bc_trace
         if not os.path.exists(P.VANILLA_ROM):
             self.skipTest("no ROM on this PC")
-        capture = {}
-        data, log = bc_run.run(S.rom_bytes(P.VANILLA_ROM), "9859608359", "normal",
-                               bc_trace.preset_flags("New Player") + " bingoboingo", say=lambda m: None, capture=capture)
-        self.assertTrue(data)
-        cards = capture.get("bingo") or []
-        self.assertEqual(len(cards), 1)
-        self.assertIn("Beyond Chaos Bingo Card", cards[0])
+        # in a process of its own: BC keeps module state from one run to the next (the exe-parity test after this
+        # one needs a fresh BC)
+        tools = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools")
+        code = ("import sys, json; sys.path.insert(0, %r); import kitpath, bc_run, bc_trace, prdata as P, ff6snes as S\n"
+                "c = {}\n"
+                "d, _ = bc_run.run(S.rom_bytes(P.VANILLA_ROM), '9859608359', 'normal', "
+                "bc_trace.preset_flags('New Player') + ' bingoboingo', say=lambda m: None, capture=c)\n"
+                "print(json.dumps({'rom': len(d), 'bingo': c.get('bingo') or []}))") % tools
+        p = subprocess.run([sys.executable, "-W", "ignore", "-c", code], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+        self.assertEqual(p.returncode, 0, p.stderr[-800:])
+        res = json.loads(p.stdout.strip().splitlines()[-1])
+        self.assertTrue(res["rom"])
+        self.assertEqual(len(res["bingo"]), 1)
+        self.assertIn("Beyond Chaos Bingo Card", res["bingo"][0])
         self.assertEqual([n for n in os.listdir(os.path.abspath(bc_run.HOME)) if n.startswith("bingo.")], [])
 
 
@@ -499,6 +568,33 @@ class BcPlayerTestInBatch(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(g.bepinex, T.MOD, "generator")))
         T.restore()
         self.assertTrue(os.path.isdir(os.path.join(g.plugins_dir, "WorldsCollide")))   # as the batch found it
+
+    def test_dev_config_survives_byte_for_byte(self):
+        # QA's bc-7 -> bc-8: the plugin rewrote the config with ProjectDir empty during the player install, restore
+        # left that, and the PC's next dev runs had no generator
+        T, PT, g = self.T, self.PT, self.g
+        cfg = os.path.join(g.bepinex, "config", PT.CFG)
+        dev = b"[Generator]\r\n\r\nProjectDir = C:\\Projects\\Gamedev\\ff6-mod\r\n\r\n[Other]\r\nKeep = 1\r\n"
+        with open(cfg, "wb") as f:
+            f.write(dev)
+        T.install()
+        PT.install(self.zip)
+        self.assertFalse(os.path.exists(cfg))                    # a player's install has none
+        with open(cfg, "wb") as f:
+            f.write(b"[Generator]\r\nProjectDir = \r\n")         # what the plugin writes at its first start
+        PT.restore()
+        with open(cfg, "rb") as f:
+            self.assertEqual(f.read(), dev)
+        self.assertFalse(os.path.exists(os.path.join(g.bepinex, PT.CFG_KEPT)))
+
+    def test_no_config_before_means_none_after(self):
+        T, PT, g = self.T, self.PT, self.g
+        cfg = os.path.join(g.bepinex, "config", PT.CFG)
+        PT.install(self.zip)
+        with open(cfg, "wb") as f:
+            f.write(b"[Generator]\r\nProjectDir = \r\n")
+        PT.restore()
+        self.assertFalse(os.path.exists(cfg))
 
     def test_without_a_dev_install_restore_leaves_none(self):
         T, PT, g = self.T, self.PT, self.g
@@ -564,6 +660,156 @@ class BcRomFreeParity(unittest.TestCase):
         p = subprocess.run([sys.executable, os.path.join(PR, "tools", "bc_parity.py"), "9859608359", "New Player"],
                            cwd=PR, capture_output=True, text=True, encoding="utf-8", errors="replace")
         self.assertEqual(p.returncode, 0, p.stdout[-3000:] + p.stderr[-1500:])
+
+
+class BcMonsterChests(unittest.TestCase):
+    """tools/seed_info.monster_chests' chest_parties: a chest BC made a monster-in-a-box fights its formation's PR
+    party, unless that party runs a story battle script (party 490's sc_b_0115: Shadow's chase, then a forced exit;
+    the BC lead's SysCall triage, 2026-11-21): then a plain party with the same monsters, or a copy with no script."""
+
+    def setUp(self):
+        import prdata as P
+        import seed_info
+        import seed_live
+        self.P, self.SI = P, seed_info
+        self.out = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.out, True)
+        self.csv = os.path.join(self.out, *seed_live.MASTER_PATH.split("/"), "monster_party.csv")
+        os.makedirs(os.path.dirname(self.csv))
+        self.van = P.Table("monster_party")
+        with open(self.csv, "w", encoding="utf-8", newline="") as f:
+            f.write(self.van.to_csv(self.van.rows.keys()))
+
+    def rows(self):
+        with open(self.csv, encoding="utf-8", newline="") as f:
+            return self.P.Table("monster_party", f.read()).rows
+
+    def test_scripts(self):
+        """Every script a formation's party runs is classified (a new one fails here), both kinds as the coordinator
+        asked: a boss's mechanics stay (the Whelk, Ultima Buster, the Phantom Train, the Flans'
+        splits), story scenes and scripted ends go (Kefka at the camp, Vargas, Leo, Relm, the final tiers, Ultros at the
+        river: its scene targets fixed characters, BC lead 2026-11-21)."""
+        import idmap as M
+        names = self.SI._script_names()
+        reach = {names.get(self.van.rows[M.party(f)]["script_name"]) for f in range(576)
+                 if M.party(f) in self.van.rows and self.van.rows[M.party(f)]["script_name"] not in ("", "0")}
+        self.assertFalse(reach - set(self.SI.BOX_SCRIPTS), "battle scripts a chest can reach, not classified")
+        plain = self.SI.plain_box_scripts()
+        for keep in ("sc_b_0239", "sc_b_2026", "sc_b_2016", "sc_b_0011", "sc_b_0977", "sc_b_2025", "sc_b_2008"):
+            self.assertIn(keep, plain)
+        for story in ("sc_b_0115", "sc_b_0055", "sc_b_0555_1", "sc_b_0547", "sc_b_2022", "sc_b_0067", "sc_b_0065"):
+            self.assertNotIn(story, plain)
+        self.assertNotIn("sc_b_mod_own", plain)      # one the table doesn't know: a story one
+
+    def test_kept_scripts_name_no_fixed_characters(self):
+        """No kept script plays an effect on a fixed character (PlayBattleEffect type 1 = a player: Ultros's river scene
+        on Terra/Edgar/Sabin/Banon), which a chest's party may lack (the BC lead's rule, 2026-11-21)."""
+        import prdata as P
+        base = os.path.join(P.VANILLA, "battle_script", "Assets", "GameAssets", "Serial", "Res", "Battle", "BattleScript")
+        if not os.path.isdir(base):
+            self.skipTest("no vanilla battle scripts")
+        for name, (role, _) in self.SI.BOX_SCRIPTS.items():
+            if role != "keep":
+                continue
+            with open(os.path.join(base, name + ".json"), encoding="utf-8") as f:
+                ms = json.load(f)["Mnemonics"]
+            on_players = [m for m in ms if m["mnemonic"] == "PlayBattleEffect" and ((m.get("operands") or {}).get("iValues") or [0])[0] == 1]
+            self.assertEqual(on_players, [], name)
+
+    def test_kinds(self):
+        """A chest on a boss with mechanics keeps its party; one on a story party moves."""
+        import idmap as M
+        by_script = {}
+        names = self.SI._script_names()
+        for f in range(576):
+            p = M.party(f)
+            if p in self.van.rows:
+                by_script.setdefault(names.get(self.van.rows[p]["script_name"]), (f, p))
+        cases = {n: by_script[n] for n in ("sc_b_0011", "sc_b_0977", "sc_b_0065", "sc_b_2025", "sc_b_2008",
+                                           "sc_b_0115", "sc_b_0055", "sc_b_2022")}
+        out = self.SI.chest_parties({n: p for n, (f, p) in cases.items()}, {n: f for n, (f, p) in cases.items()},
+                                    self.out, lambda m: None)
+        for n, (f, p) in cases.items():
+            if self.SI.BOX_SCRIPTS[n][0] == "keep":
+                self.assertEqual(out[n], p, n)
+            else:
+                self.assertNotEqual(out[n], p, n)
+                self.assertIn(self.rows()[out[n]]["script_name"], ("0", ""), n)
+
+    def test_every_formation(self):
+        import idmap as M
+        import port_encounters as E
+        boxes = {str(f): M.party(f) for f in range(576) if M.party(f) in self.van.rows}
+        forms = {str(f): f for f in range(576)}
+        logs = []
+        out = self.SI.chest_parties(boxes, forms, self.out, logs.append)
+        rows, names, plain = self.rows(), self.SI._script_names(), self.SI.plain_box_scripts()
+        for flag, party in out.items():
+            r = rows[party]
+            self.assertTrue(r["script_name"] in ("", "0") or names.get(r["script_name"]) in plain,
+                            f"formation {flag}: party {party} runs {names.get(r['script_name'])}")
+            old = self.van.rows[boxes[flag]]
+            self.assertEqual(E.party_members(r), E.party_members(old), f"formation {flag}: other monsters")
+            self.assertEqual(r["battle_background_asset_id"], old["battle_background_asset_id"])
+            if party == boxes[flag]:
+                self.assertEqual(r, old)
+        moved = {boxes[k] for k in out if out[k] != boxes[k]}
+        self.assertIn(490, moved)
+        new = out[str(next(f for f in range(576) if M.party(f) == 490))]
+        self.assertNotIn(new, self.van.rows)
+        self.assertEqual(dict(rows[new], id="490", script_name=self.van.rows[490]["script_name"]), self.van.rows[490])
+        self.assertTrue(logs and "490 (sc_b_0115)" in logs[0])
+        # vanilla's rows are kept; a second run (a reroll on the same folder) reuses the copies
+        self.assertTrue(all(rows[i] == r for i, r in self.van.rows.items()))
+        again = self.SI.chest_parties(boxes, forms, self.out, logs.append)
+        self.assertEqual(again, out)
+        self.assertEqual(len(self.rows()), len(rows))
+
+    def test_missing_row(self):
+        """A box on a formation the PR has no party for (the NP seed's chest 207: formation 0x1fa, party 507) fights a
+        party made from the formation's monsters, with no battle script; without make it's kept and logged; a
+        formation with no monsters (0x1f8) gets none."""
+        import ff6snes as S
+        import idmap as M
+        import port_encounters as E
+        import prdata as P
+        if not os.path.exists(P.VANILLA_ROM):
+            self.skipTest("no vanilla ROM")
+        rom = S.Rom(P.VANILLA_ROM)
+        self.assertNotIn(M.party(0x1fa), self.van.rows)
+        logs = []
+        kept = self.SI.chest_parties({"207": 507}, {"207": 0x1fa}, self.out, logs.append)
+        self.assertEqual(kept, {"207": 507})
+        self.assertIn("parties with no row: 507", logs[-1])
+        make = self.SI.party_maker(rom, rom, {"207": 0x1fa, "9": 0x1f8, "3": 0x2a}, {})
+        out = self.SI.chest_parties({"207": 507, "9": 505, "3": 43}, {"207": 0x1fa, "9": 0x1f8, "3": 0x2a},
+                                    self.out, logs.append, make)
+        rows = self.rows()
+        for flag, f in (("207", 0x1fa), ("3", 0x2a)):
+            self.assertIn(out[flag], rows, flag)
+            self.assertEqual(E.party_members(rows[out[flag]]), tuple(sorted(M.monster(e) for e, _, _ in E.formation(rom, f))))
+            self.assertEqual(rows[out[flag]]["script_name"], "0")
+        self.assertEqual(out["9"], 505)              # no monsters: nothing made
+        for f in (0x1f8, 0x180, 0x1f3, 0x1cd):       # none / only the PR's nameless event monsters
+            self.assertTrue(self.SI.blank_formation(rom, f), hex(f))
+        for f in (0x1fa, 0x2a, 0x1f0, 0x3c):         # Level 60 Magic, Birthday Suit, an Imperial Soldier, Soldiers
+            self.assertFalse(self.SI.blank_formation(rom, f), hex(f))
+        # a seed that draws 311 (SNES Colossus, nameless in the PR) on another shape: real there (BC's seed 1234567890
+        # put formation 0x1cd in chest 207)
+        mon = P.Table("monster")
+        mon.rows[311]["monster_asset_id"] = "2310"
+        with open(os.path.join(os.path.dirname(self.csv), "monster.csv"), "w", encoding="utf-8", newline="") as f:
+            f.write(mon.to_csv(mon.rows.keys()))
+        self.assertFalse(self.SI.blank_formation(rom, 0x1cd, self.out))
+        self.assertTrue(self.SI.blank_formation(rom, 0x180, self.out))
+        make2 = self.SI.party_maker(rom, rom, {"5": 0x180}, {})
+        self.assertIsNone(make2("5", self.P.Table("monster_party")))
+        self.assertIn("made from the formation", logs[-1])
+
+    def test_plain_kept(self):
+        out = self.SI.chest_parties({"1": 7, "2": 62}, {"1": 6, "2": 61}, self.out, lambda m: None)
+        self.assertEqual(out, {"1": 7, "2": 62})
+        self.assertEqual(len(self.rows()), len(self.van.rows))
 
 
 if __name__ == "__main__":

@@ -190,6 +190,7 @@ namespace BeyondChaos.PR
 
         internal static void End()
         {
+            BcJunctionActs.DropTests();
             BcJunction.Granted.Clear();
             BcJunction.Testing = false;
             BcJunction.Invalidate();
@@ -197,11 +198,11 @@ namespace BeyondChaos.PR
             BcHarness.HoldHp = false;
         }
 
-        // The statuses the checks give (or effects give in them) taken off every fighter, and the battle's level /
-        // max HP / Def changes dropped, so each check starts from the same battle. bc-5: the start check's Plague
-        // Doom stayed on all four monsters and killed them ~53 s later (the PR's countdown, 40 at ~1.33 s), which
-        // ended the battle for the 24 checks after it; its Reraise on Biggs would also have raised auto_down's
-        // target before the Phoenix Down, and resonate's Haste on party member 0 answered sos's "Haste".
+        // The statuses the checks give (or effects give in them) taken off every fighter, the party's fallen raised,
+        // and the battle's level / max HP / Def changes dropped, so each check starts from the same battle. bc-5: the
+        // start check's Plague Doom stayed on all four monsters and killed them ~53 s later (the PR's countdown, 40 at
+        // ~1.33 s), which ended the battle for the 24 checks after it; its Reraise on Biggs would also have raised
+        // auto_down's target before the Phoenix Down, and resonate's Haste on party member 0 answered sos's "Haste".
         static readonly ConditionType[] Scratch =
         {
             ConditionType.Doom, ConditionType.Heist, ConditionType.Regeneration, ConditionType.Reraise, ConditionType.Sleep,
@@ -216,14 +217,24 @@ namespace BeyondChaos.PR
                 foreach (var s in Scratch)
                     if (BcJunction.HasStatus(u, s))
                         try { cc.InterruptRemoveCondition(u, s); } catch (Exception e) { Hooks.WarnOnce("bc-junction-tidy", e); }
+            // bc-selftest-4: Biggs fell in auto_down and stayed down (bckeep's top-up left him "9999 HP, Wound"), so
+            // return_magic's holder never acted and every check after it had two of the three fighters
+            foreach (var p in BcJunction.Party().ToList())
+                if (BcJunction.HasStatus(p, ConditionType.UnableFight) || Hp(p) <= 0)
+                    try
+                    {
+                        cc.InterruptRemoveCondition(p, ConditionType.UnableFight);
+                        SetHp(p, Math.Max(1, Math.Min(9999, MaxHp(p))));
+                    }
+                    catch (Exception e) { Hooks.WarnOnce("bc-junction-tidy-raise", e); }
             BcJunctionStats.Clear();
         }
 
-        // the acts the check queued itself (Act / Cast: BcJunctionActs marks them Ours) by `who` since `since`, with
-        // `ability` (0: any): not an auto-battle act of the same fighter (bckeep's auto: MagiTek every ~2 s in bc-5),
-        // a monster's own AI act, or a counter an effect queued
+        // the acts the check queued itself (Act / Cast: BcJunctionActs.QueueTest marks them Test) by `who` since `since`,
+        // with `ability` (0: any): not an auto-battle act of the same fighter (bckeep's auto: MagiTek every ~2 s in
+        // bc-5), a monster's own AI act, or an act an effect queued (a party member's test acts are counters too)
         internal static List<Log> Mine(float since, BattleUnitData who, int ability = 0) =>
-            Since(since, who).Where(l => l.Act.Ours && !l.Act.Counter && (ability == 0 || l.Act.Ability?.Id == ability)).ToList();
+            Since(since, who).Where(l => l.Act.Test && (ability == 0 || l.Act.Ability?.Id == ability)).ToList();
 
         internal static BattleUnitData P(int slot) => BcJunction.Party().Skip(slot).FirstOrDefault();
         internal static BattleUnitData E(int slot) => BcJunction.Enemies().Skip(slot).FirstOrDefault();
@@ -241,21 +252,35 @@ namespace BeyondChaos.PR
             p.CurrentHP = hp;
         }
 
+        // max MP raised to it first (the New Game party's Wedge and Biggs may have none: mp_switch needs MP > 0)
         internal static void SetMp(BattleUnitData u, int mp)
         {
             var p = u?.BattleUnitDataInfo?.Parameter;
-            if (p != null) p.CurrentMP = mp;
+            if (p == null) return;
+            try { if (p.BaseMaxMp < mp) p.BaseMaxMp = mp; } catch (Exception e) { Hooks.WarnOnce("bc-junction-test-maxmp", e); }
+            p.CurrentMP = mp;
         }
 
         // the Attack command's ability (a plain strike for either side)
         internal static int AttackAbility() => MasterManager.Instance.GetData<Command>(1)?.AbilityId ?? 1;
 
-        // an act queued as the game queues them (a monster's too); null when it was queued
+        // the check's own act (BcJunctionActs.QueueTest: a party member's as a counter, a monster's as Normal); null
+        // when it was queued
         internal static string Act(BattleUnitData who, BattleUnitData target, int ability, int command = 0)
         {
             if (who == null || target == null) return "no fighter";
-            var a = BcJunctionActs.Queue(who, new[] { target }, ability, command, interrupt: false);
+            var a = BcJunctionActs.QueueTest(who, new[] { target }, ability, command);
             return a == null ? $"ability {ability} not queued" : null;
+        }
+
+        // what the act hub saw land on `u` since `since` (for failure lines: the next run says why)
+        internal static string Seen(float since, BattleUnitData u)
+        {
+            if (u == null) return "nobody";
+            var on = Since(since).Select(l => (l, x: On(l, u))).Where(p => p.x != null && p.x.Targeted).Take(4)
+                .Select(p => $"{BcJunction.Who(p.l.Act.Attacker)} {p.l.Act.Ability?.Id ?? 0}/{p.l.Act.Command?.Id ?? 0}{(p.l.Act.Test ? " test" : "")}: " +
+                             $"{p.x.Hit} HP {p.x.HpBefore}->{p.x.HpAfter} MP {p.x.MpBefore}->{p.x.MpAfter}{(p.x.Died ? " fell" : "")}").ToList();
+            return on.Count == 0 ? $"no act landed on {BcJunction.Who(u)}" : $"on {BcJunction.Who(u)}: " + string.Join("; ", on);
         }
 
         // the acts that landed since `since` by `who` (null: anyone)

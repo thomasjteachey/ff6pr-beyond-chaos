@@ -26,6 +26,15 @@ static class Program
         Console.WriteLine($"BC {set.Version}: {set.Flags.Count} flags, {set.Sections.Count} sections, {set.Presets.Count} presets, {set.Modes.Count} modes");
         var cases = new List<(string Name, string Flags)>();
 
+        // the kit's rage rules (BcSkills: `o`/`w` teach a won battle's rages): ability 799 + PR monster 1..255
+        Check(PrKit.Ff6.SnesRagesRules.RageAbility(1) == 800 && PrKit.Ff6.SnesRagesRules.RageAbility(255) == 1054, "rage abilities 800..1054");
+        Check(PrKit.Ff6.SnesRagesRules.RageAbility(0) == 0 && PrKit.Ff6.SnesRagesRules.RageAbility(256) == 0, "no rage for 0 or past 255");
+        // bc-15's battle 1 (party 1: one monster 26) teaches rage 825, in range; bc-15b's battle 207 (Ahriman 252) 1051
+        Check(string.Join(",", PrKit.Ff6.SnesRagesRules.Rages(new[] { 26 })) == "825" &&
+              string.Join(",", PrKit.Ff6.SnesRagesRules.Rages(new[] { 252, 252, 252 })) == "1051", "bc-15's battles' rages");
+        Check(string.Join(",", PrKit.Ff6.SnesRagesRules.Rages(new[] { 13, 1, 13, 0, 300, 255 })) == "812,800,1054",
+              "a battle's rages: in order, once each");
+
         // presets: parse -> serialize keeps every flag and value, nothing unknown
         foreach (var p in set.Presets)
         {

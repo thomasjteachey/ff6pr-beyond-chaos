@@ -26,6 +26,8 @@ import bc_testinstall as T  # noqa: E402
 
 LEFT_OUT = ["generator/vanilla", "generator/cache", "baseline/files", "baseline/vanilla_data"]   # = modkit.json
 NOTE = "bc_playertest.json"          # BepInEx/: {"dev_install_before": bool}, while a player install is in place
+CFG = "ff6mod.beyondchaos.cfg"       # BepInEx/config/: the plugin's config (a dev PC's ProjectDir lives there)
+CFG_KEPT = "bc_playertest.cfg"       # BepInEx/: that config as it was before the player install, put back by restore
 
 
 def latest_zip():
@@ -42,11 +44,19 @@ def install(zip_path=None):
     if os.path.exists(note):
         raise SystemExit(f"a player install is already in place ({note}): restore first")
     dev_before = os.path.exists(os.path.join(g.bepinex, T.STATE))
+    # the config exactly as it is now (a player's install has none, and the plugin then writes one of its own
+    # with ProjectDir empty): restore puts these bytes back, so the PC's later dev runs find their generator
+    cfg_path = os.path.join(g.bepinex, "config", CFG)
+    kept = os.path.join(g.bepinex, CFG_KEPT)
+    if os.path.exists(cfg_path):
+        shutil.copyfile(cfg_path, kept)
+    elif os.path.exists(kept):
+        os.remove(kept)
     if dev_before:
         print("the batch's BC test install is in place: restored first (put back by `restore`)")
         T.restore()
     with open(note, "w", encoding="utf-8") as f:
-        json.dump({"dev_install_before": dev_before}, f)
+        json.dump({"dev_install_before": dev_before, "config_kept": os.path.exists(kept)}, f)
     T.install()                          # BNW/WC held aside, BC's dev layout in place: now made a player's
     data = os.path.join(g.bepinex, T.MOD)
     mg = os.path.join(g.magicite_dir, T.MOD)
@@ -87,6 +97,17 @@ def restore():
     T.restore()
     shutil.rmtree(os.path.join(g.bepinex, T.MOD, "generator"), ignore_errors=True)
     print("the bundle's generator removed (seeds stay in BepInEx/BeyondChaos/seeds)")
+    # the config byte for byte as before the player install (or none, if there was none)
+    cfg_path = os.path.join(g.bepinex, "config", CFG)
+    kept = os.path.join(g.bepinex, CFG_KEPT)
+    if os.path.exists(kept):
+        os.makedirs(os.path.dirname(cfg_path), exist_ok=True)
+        shutil.copyfile(kept, cfg_path)
+        os.remove(kept)
+        print(f"config put back as it was ({CFG})")
+    elif os.path.exists(note) and os.path.exists(cfg_path):
+        os.remove(cfg_path)
+        print(f"config removed: there was none before the player install ({CFG})")
     if os.path.exists(note):
         os.remove(note)
     if dev_before:

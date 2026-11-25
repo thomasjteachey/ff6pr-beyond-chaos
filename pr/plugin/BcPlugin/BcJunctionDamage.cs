@@ -137,6 +137,7 @@ namespace BeyondChaos.PR
                     catch (Exception e) { Hooks.WarnOnce("bc-junction-rule-" + name, e); }
                 }
                 Last = calc;
+                BcJunctionActs.Current?.Calcs.Add(calc);
                 if (Logging) { Recent.Add(calc); if (Recent.Count > 300) Recent.RemoveRange(0, 100); }
                 bool scaled = (hit == HitType.Hit || hit == HitType.Critical || hit == HitType.Recovery) && value > 0;
                 if (calc.Missed) calc.ValueAfter = 0;

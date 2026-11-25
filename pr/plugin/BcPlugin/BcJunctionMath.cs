@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace BeyondChaos.PR
 {
@@ -29,6 +30,28 @@ namespace BeyondChaos.PR
 
         // Reflect Boost: x1.25 for each holder past the first among the caster and the reflectors
         public static double ReflectBoost(int holders) => Math.Pow(1.25, Math.Max(0, holders - 1));
+
+        // Repel <element> / Repel Nuke: the SNES element bit (0-7) whose Repel bounces the spell off the target, 8 for
+        // Repel Nuke (a non-elemental spell with power), -1: it lands. Never a physical attack or a self-cast.
+        // elements: the spell's PR attribute ids; elementAttr: SNES bit -> PR attribute id; repels(bit): the target's
+        public static int RepelBit(IReadOnlyCollection<int> elements, IReadOnlyList<int> elementAttr, Func<int, bool> repels,
+                                   bool repelNuke, int power, bool physical, bool self)
+        {
+            if (physical || self) return -1;
+            elements ??= Array.Empty<int>();
+            for (int b = 0; b < 8 && b < elementAttr.Count; b++)
+                if (elements.Contains(elementAttr[b]) && repels(b)) return b;
+            return elements.Count == 0 && power > 0 && repelNuke ? 8 : -1;
+        }
+
+        // --- a fighter falling in an act -----------------------------------------------------------------------
+
+        // The act felled the unit: its HP went from above 0 to 0, or it took Wound. The PR gives Wound after the act's
+        // HitCalc (BattleConditionController.UpdateConditionHp), so the act hub sees HP 0 without it (bc-selftest-4: a
+        // party member killed with an Auto-Down holder beside it got no Phoenix Down; Immortal, the death casts, Poach
+        // and VIP read the same).
+        public static bool Fell(int hpBefore, int hpAfter, bool woundBefore, bool woundAfter) =>
+            !woundBefore && hpBefore > 0 && (woundAfter || hpAfter <= 0);
 
         // --- levels (Juggernaut, Burst, Discordant) ------------------------------------------------------------
 

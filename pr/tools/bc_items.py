@@ -3,8 +3,7 @@ question mark mean though? ... BC is unparseable").
 
 BC's `questionablecontent` puts a "?" after (or over the last letter of) the name of any equipment its
 item randomizer changed, and only its spoiler log says how ("BehemothSui?:  Doom" under BREAKABLE ITEMS:
-it casts Doom when used). Here the name is the game's own with BC's "?" (the user: "? is fine if that's
-what it means"), and the item's description says what the "?" stands for, in the Pixel Remaster's words:
+it casts Doom when used). Describe changed items with or without that code, in the Pixel Remaster's words:
 "Changed: Casts Doom when used in battle (and breaks); Defense 62 (was 50)."
 
 From BC's log (its own account of each item: breaks, procs, spells taught, elements, special features)
@@ -203,7 +202,7 @@ def stat_changes(kind, van_row, seed_row):
 
 
 def apply(out, van_rom_path, seed_rom_path, spoiler, log=print):
-    """Descriptions that say what BC changed in each "?" item. Returns {PR name key: description}."""
+    """Descriptions that say what BC changed in each item. Returns {PR name key: description}."""
     import bc_commands
     import ff6snes as S
     import idmap as M
@@ -218,8 +217,6 @@ def apply(out, van_rom_path, seed_rom_path, spoiler, log=print):
     vmsg = P.messages("system", "en")
     done = {}
     for vi, bi in zip(vitems, bitems):
-        if "?" not in bi.name:
-            continue
         m = M.item(bi.id)
         cid = M.content_id(*m) if m else None
         row = ct.rows.get(cid) if cid else None
@@ -233,7 +230,7 @@ def apply(out, van_rom_path, seed_rom_path, spoiler, log=print):
         if bi.type == "weapon" and abs(bi.hit_or_mdef - vi.hit_or_mdef) >= 8:
             stats.insert(1 if stats else 0, "More accurate" if bi.hit_or_mdef > vi.hit_or_mdef else "Less accurate")
         phrases = describe(entries.get(bi.name, []), spells, stats)
-        key = row["mes_id_name"]   # the name: the game's own + BC's "?" (pr_names), which the description explains
+        key = row["mes_id_name"]
         if phrases and row["mes_id_description"] not in ("None", ""):
             text = "Changed: " + "; ".join(phrases) + "."
             while len(text) > MAX_TEXT and len(phrases) > 1:

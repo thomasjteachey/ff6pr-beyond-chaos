@@ -15,7 +15,9 @@ namespace BeyondChaos.PR
 {
     // More junction effects, each on its own PR hook (specs pr/build/bc_junction/spec_A/B/C.json):
     //   Repel <element> (target)   a spell of that element bounces off the holder as off Reflect (no Reflect
-    //                              needed; not physical attacks): TargetFunction.CheckToReflectAct
+    //                              needed; not physical attacks): TargetFunction.CheckAndOverrideToReflectAct,
+    //                              which has CheckToReflectAct inlined (bc-selftest-4: a hook on that alone never
+    //                              ran, the holder took a monster's Fire, 0 repels; tools/decomp/battle)
     //   Repel Nuke (target)        the same for non-elemental spells with power (BC tests the caster when the
     //                              spell doesn't ignore defense: a register mix-up; here the target, as meant)
     //   Prism Wall (either)        a non-elemental spell that ignores defense rolls a random element for the
@@ -44,7 +46,9 @@ namespace BeyondChaos.PR
 
         internal static void Register(Harmony h)
         {
-            Hooks.Patch(h, typeof(TargetFunction), "CheckToReflectAct", typeof(BcJunctionMore), postfix: nameof(Reflect_Postfix));
+            Hooks.Patch(h, typeof(TargetFunction), "CheckAndOverrideToReflectAct", typeof(BcJunctionMore),
+                prefix: nameof(ReflectPass_Prefix), postfix: nameof(ReflectPass_Postfix));
+            Hooks.Patch(h, typeof(TargetFunction), "CheckToReflectAct", typeof(BcJunctionMore), postfix: nameof(Reflect_Postfix));   // any caller that doesn't inline it
             Hooks.Patch(h, typeof(PlayerCharacterParameter), "ConfirmedAbilityEvasionRate", typeof(BcJunctionMore), postfix: nameof(MBlock_Postfix));
             Hooks.Patch(h, typeof(EnemyCharacterParameter), "ConfirmedAbilityEvasionRate", typeof(BcJunctionMore), postfix: nameof(MBlock_Postfix));
             Hooks.Patch(h, typeof(PlayerCharacterParameter), "GetArmConfirmedAttack", typeof(BcJunctionMore), postfix: nameof(Arm_Postfix));
@@ -93,6 +97,56 @@ namespace BeyondChaos.PR
 
         // --- Reflect: Null Reflect, Repel, Prism Wall ---------------------------------------------------------
 
+        // The game's reflect pass over an act's targets (TargetFunction.CheckAndOverrideToReflectAct: the targets kept
+        // as BeforeTargetUnitDatas, then each target with Reflect swapped for a unit of the caster's side by
+        // OverrideToReflectAct, the reflectors kept as ReflectUnitDatas). Null Reflect skips it (it only bounces);
+        // Repel and Prism Wall bounce more targets after it, the game's own way.
+        public static bool ReflectPass_Prefix(BattleActData battleActData)
+        {
+            if (!BcJunction.On || battleActData == null) return true;
+            try
+            {
+                var a = battleActData.AttackUnitData;
+                if (a == null || !Has(a, "null_reflect")) return true;
+                var targets = battleActData.TargetUnitDatas;
+                battleActData.SetBeforeTargetUnitDatas(targets);
+                if (targets != null && targets.Any(t => t != null && BcJunction.HasStatus(t, ConditionType.Reflex))) NullReflected++;
+                return false;
+            }
+            catch (Exception e) { Hooks.WarnOnce("bc-junction-reflect-null", e); return true; }
+        }
+
+        public static void ReflectPass_Postfix(BattleActData battleActData)
+        {
+            if (!BcJunction.On || battleActData == null) return;
+            try
+            {
+                var a = battleActData.AttackUnitData;
+                if (a == null || Has(a, "null_reflect")) return;
+                var before = (battleActData.BeforeTargetUnitDatas ?? battleActData.TargetUnitDatas)?.ToArray();
+                if (before == null || before.Length == 0) return;
+                var reflectors = new List<BattleUnitData>();
+                var had = battleActData.ReflectUnitDatas;
+                if (had != null) foreach (var r in had) if (r != null) reflectors.Add(r);
+                int n0 = reflectors.Count;
+                foreach (var t in before)
+                {
+                    if (t == null || reflectors.Any(r => r.Pointer == t.Pointer)) continue;
+                    var now = battleActData.TargetUnitDatas;
+                    if (now == null || !now.Any(x => x != null && x.Pointer == t.Pointer)) continue;   // the game already moved it
+                    if (!EffectBounces(battleActData, t)) continue;
+                    TargetFunction.OverrideToReflectAct(battleActData, t);
+                    reflectors.Add(t);
+                }
+                if (reflectors.Count == n0) return;
+                var arr = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<BattleUnitData>(reflectors.Count);
+                for (int i = 0; i < reflectors.Count; i++) arr[i] = reflectors[i];
+                battleActData.SetReflectUnitDatas(arr);
+            }
+            catch (Exception e) { Hooks.WarnOnce("bc-junction-reflect-pass", e); }
+        }
+
+        // a caller of CheckToReflectAct that the game didn't inline: the same answer
         public static void Reflect_Postfix(BattleActData battleActData, BattleUnitData target, ref bool __result)
         {
             if (!BcJunction.On || battleActData == null || target == null) return;
@@ -100,23 +154,27 @@ namespace BeyondChaos.PR
             {
                 var a = battleActData.AttackUnitData;
                 if (a != null && __result && Has(a, "null_reflect")) { __result = false; NullReflected++; return; }
-                if (__result || a != null && Has(a, "null_reflect")) return;
-                var ab = battleActData.abilityList != null && battleActData.abilityList.Count > 0 ? battleActData.abilityList[0] : null;
-                if (ab == null || PhysicalAbility(ab) || a == null || a.Pointer == target.Pointer) return;
-                var el = Elements(ab);
-                if (el.Length == 0 && TestIgnoresDefense(ab) && (Has(a, "prism_wall") || Has(target, "prism_wall")))
-                    el = new[] { BcJunctionDamage.ElementAttr[BcJunction.Rng.Next(8)] };
-                for (int b = 0; b < 8; b++)
-                    if (el.Contains(BcJunctionDamage.ElementAttr[b]) && Has(target, "repel_" + BcJunctionDamage.ElementKey[b]))
-                    {
-                        __result = true;
-                        Repelled++;
-                        Hooks.NoteOnce("bc-junction-repel", () => $"{BcJunction.Tag} first Repel: {BcJunction.Who(target)} bounces ability {ab.Id}");
-                        return;
-                    }
-                if (el.Length == 0 && ab.StandardValue > 0 && Has(target, "repel_nuke")) { __result = true; Repelled++; }
+                if (!__result && EffectBounces(battleActData, target)) __result = true;
             }
             catch (Exception e) { Hooks.WarnOnce("bc-junction-reflect", e); }
+        }
+
+        // Repel <element>, Repel Nuke, Prism Wall: the act's spell bounces off `target` (which has no Reflect of its own)
+        static bool EffectBounces(BattleActData act, BattleUnitData target)
+        {
+            var a = act.AttackUnitData;
+            if (a == null || target == null || Has(a, "null_reflect")) return false;
+            var ab = act.abilityList != null && act.abilityList.Count > 0 ? act.abilityList[0] : null;
+            if (ab == null) return false;
+            var el = Elements(ab);
+            if (el.Length == 0 && TestIgnoresDefense(ab) && (Has(a, "prism_wall") || Has(target, "prism_wall")))
+                el = new[] { BcJunctionDamage.ElementAttr[BcJunction.Rng.Next(8)] };
+            int bit = BcJunctionMath.RepelBit(el, BcJunctionDamage.ElementAttr, b => Has(target, "repel_" + BcJunctionDamage.ElementKey[b]),
+                                              Has(target, "repel_nuke"), ab.StandardValue, PhysicalAbility(ab), a.Pointer == target.Pointer);
+            if (bit < 0) return false;
+            Repelled++;
+            Hooks.NoteOnce("bc-junction-repel", () => $"{BcJunction.Tag} first Repel: {BcJunction.Who(target)} bounces ability {ab.Id}");
+            return true;
         }
 
         static bool TestIgnoresDefense(Ability a)

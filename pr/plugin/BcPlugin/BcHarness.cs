@@ -18,6 +18,7 @@ namespace BeyondChaos.PR
     {
         internal static void Register()
         {
+            PrKit.Ff6.HarnessBattle.Register();   // the kit's battle probes (units, unithp, cond, act) and giveespers
             Harness.Register("bc", _ => Status(), "bc: Beyond Chaos's data, active seed and generator");
             Harness.Register("bcgen", Gen, "bcgen SEED [MODE] [PRESET...]: start a Beyond Chaos seed in game (answers at once); `bc` reports it made, applied and checked, or the error");
             Harness.Register("bcapply", a =>
@@ -30,6 +31,7 @@ namespace BeyondChaos.PR
             }, "bcapply ID|none: apply an earlier seed (none: the game's own data) and check it");
             Harness.Register("bccheck", _ => Check(), "bccheck: the live rows and Magicite files against the active seed");
             Harness.Register("bcscreen", _ => $"{Plugin.Screen.SelfTest()}; nav: {Plugin.Screen.NavTest()}", "bcscreen: the options screen's self-test");
+            Harness.Register("bcespertest", _ => EsperTest(), "bcespertest: try BC's LV -1 and LV +50% on cloned character data, and a forbidden dancingmaduin equip");
             Harness.Register("bckeep", a =>
             {
                 Keep = a.Length == 0 || a[0] != "off";
@@ -140,6 +142,79 @@ namespace BeyondChaos.PR
                 parts.Add($"{id} {name} ({c.Kind}, ability {row?.AbilityId}, list {row?.ListType}, exec {row?.ExecutionType}){(ok ? "" : " MISMATCH")}");
             }
             return $"{s.Commands.Count} commands: " + string.Join("; ", parts) + $"; extra acts so far {BcCommands.Extra}";
+        }
+
+        static string EsperTest()
+        {
+            var seed = BcSeeds.Active;
+            if (seed == null) return "error: no BC seed";
+            int stone = seed.EsperBonus.FirstOrDefault(kv => kv.Value == 7).Key;
+            if (stone <= 0) return "error: seed has no LV -1 esper";
+            var manager = UserDataManager.Instance();
+            Last.Data.User.OwnedCharacterData current = null;
+            var clones = manager?.GetOwnedCharactersClone(true);
+            if (clones != null)
+                foreach (var c in clones)
+                    if (c?.Parameter != null && c.Parameter.ConfirmedLevel() >= 3 && c.Parameter.ConfirmedLevel() < 98)
+                    { current = c; break; }
+            var provider = StatusUpProviderInstanceManager.Instance()?.GetCurrentProvider()?.TryCast<Last.Systems.StatusUpProvider>();
+            if (current == null || provider == null) return "error: no eligible owned character or level provider";
+
+            string Trial(int code)
+            {
+                Last.Data.User.OwnedCharacterData who = null;
+                foreach (var c in manager.GetOwnedCharactersClone(true))
+                    if (c?.Id == current.Id) { who = c; break; }
+                if (who?.Parameter == null) return "FAILED: character clone missing";
+                int before = who.Parameter.ConfirmedLevel();
+                var next = MasterManager.Instance?.GetData<ExpTable>(before + 1);
+                var after = MasterManager.Instance?.GetData<ExpTable>(before + 2);
+                if (next == null || after == null) return "FAILED: EXP table missing";
+                who.MagicStoneId = stone;
+                who.AdditionalExp += Math.Max(1, next.TotalExp - who.CurrentExp + 1);
+                if (who.CurrentExp < next.TotalExp) return $"FAILED: EXP not raised to next level ({who.CurrentExp} < {next.TotalExp})";
+                var oldSeed = PrKit.Ff6.SnesEsperBonus.Seed;
+                try
+                {
+                    if (code == 8)
+                        PrKit.Ff6.SnesEsperBonus.Seed = () => new System.Collections.Generic.Dictionary<int, int> { [stone] = 8 };
+                    var result = provider.Execution(who, 123, null);
+                    if (result?.Parameter == null) return "FAILED: no level-up result";
+                    int level = result.Parameter.ConfirmedLevel(), exp = result.CurrentExp;
+                    int expected = code == 7 ? before - 1 : before + 1;
+                    int half = (after.TotalExp - next.TotalExp) / 2;
+                    int floor = MasterManager.Instance.GetData<ExpTable>(expected).TotalExp;
+                    bool ok = level == expected && (code == 7
+                        ? result.AdditionalExp == floor - result.CharacterStatusExp && exp == floor
+                        : exp >= next.TotalExp + half);
+                    return $"{(ok ? "ok" : "FAILED")}: code {code}, level {before} -> {level} (wanted {expected}), EXP {exp}" +
+                           (code == 8 ? $" (wanted >= {next.TotalExp + half})" : $" (saved offset {result.AdditionalExp}, base {result.CharacterStatusExp}, floor {floor})") +
+                           $", {PrKit.Ff6.SnesEsperBonus.LastBonus}";
+                }
+                finally { PrKit.Ff6.SnesEsperBonus.Seed = oldSeed; }
+            }
+
+            try
+            {
+                string minus = Trial(7), plus = Trial(8);
+                string equip = "no dancingmaduin mask in seed";
+                var pair = seed.EsperEquip.FirstOrDefault(kv => !kv.Value.Contains(current.characterStatusId));
+                if (pair.Key > 0)
+                {
+                    Last.Data.User.OwnedCharacterData actual = null;
+                    foreach (var c in manager.OwnedCharacterList)
+                        if (c?.Id == current.Id) { actual = c; break; }
+                    int prior = actual?.MagicStoneId ?? -1;
+                    if (actual != null)
+                    {
+                        new OwnedCharacterClient().SetMagicStone(actual.Id, pair.Key);
+                        equip = actual.MagicStoneId == prior ? $"ok: {actual.characterStatusId} denied esper {pair.Key}" :
+                            $"FAILED: {actual.characterStatusId} equipped forbidden esper {pair.Key}";
+                    }
+                }
+                return $"{minus}; {plus}; {equip}";
+            }
+            catch (Exception e) { return "FAILED: esper probe " + e; }
         }
 
         // The windows a name shows in, as the game built them: each UI text's path in its scene, its box

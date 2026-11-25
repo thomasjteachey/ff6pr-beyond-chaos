@@ -14,7 +14,7 @@ OUT_DIR/plugin/    -> BepInEx/BeyondChaos/ (the plugin's data folder, beside Bep
   generator/gamedata.json, gamedata_recipe.json, gamedata/   the game's files a player's install makes from
                          their own game (tools/bc_gamedata.py setup): the zip leaves vanilla/, cache/,
                          baseline/files, baseline/vanilla_data and the Magicite folder out
-  generator/bundle.json  written last: {"mod", "version", "built"} (the Deck tooling counts a BC install as
+  generator/bundle.json  written last: {"mod", "version", "built", "tools" (a stamp bc_seed checks)} (the Deck tooling counts a BC install as
                          installable when it's there)
   baseline/files/, baseline/vanilla_data/   the vanilla copies a seed can change (bc_live)
 OUT_DIR/magicite/BeyondChaos/ -> StreamingAssets/Magicite/BeyondChaos (bc_live.write_baseline)
@@ -226,9 +226,11 @@ def build(out=OUT, dev=False, assets=ASSETS):
     parts = {name: GB.size(os.path.join(gen, name)) // (1 << 20) for name in os.listdir(gen) if os.path.isdir(os.path.join(gen, name))}
     # last: the marker that this is a whole player bundle (the Deck tooling looks for it)
     with open(os.path.join(gen, "bundle.json"), "w", encoding="utf-8") as f:
+        import bc_run
         json.dump({"mod": "BeyondChaos", "version": version(),
                    "built": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                   "assets": assets}, f)
+                   "assets": assets,
+                   "tools": bc_run.tools_stamp(os.path.join(gen, "tools"))}, f)   # bc_seed checks it (stale tools)
     print(f"bundle: {notes[0]}; {'; '.join(notes[1:])}; generator {GB.size(gen) // (1 << 20)} MB {parts}; "
           f"Magicite folder {GB.size(magicite) // 1024} KB; {time.time() - t0:.0f} s -> {out}")
 

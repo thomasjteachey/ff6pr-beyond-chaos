@@ -34,6 +34,13 @@ static class Program
         Check(BcBattleRules.ActPlan("chain", "skill", 1, new[] { 10 }, () => true).Count == BcBattleRules.ChainCap, "a chain stops at the cap");
         Check(BcBattleRules.ActPlan("chain", "skill", 1, new[] { 10 }, () => false).Count == 0, "a chain on tails: no more");
         Check(BcBattleRules.ActPlan("multiple", "combo", 2, new[] { 10 }, () => false).SequenceEqual(new[] { 0 }), "a combo list of one skill acts as a skill");
+        // every act's own skill (bc-selftest-4: seed 9859608359's "Arise + Cyclonic", PR abilities 35 then 315, ran 315 315)
+        var arise = new[] { 35, 315 };
+        Check(S(BcBattleRules.ActAbilities(35, BcBattleRules.ActPlan("combo", "combo", 1, arise, () => true))) == "35 315", "a combo: Arise, then Cyclonic");
+        Check(S(BcBattleRules.ActAbilities(35, BcBattleRules.ActPlan("multiple", "combo", 3, arise, () => false))) == "35 315 35 315 35 315",
+              "three rounds of a combo: A B A B A B");
+        Check(S(BcBattleRules.ActAbilities(10, BcBattleRules.ActPlan("multiple", "skill", 2, new[] { 10 }, () => true))) == "10 10", "Double: the skill twice");
+        Check(S(BcBattleRules.ActAbilities(7, null)) == "7", "one act: the row's");
 
         // the self-test filter
         Check(BcBattleRules.FilterMatches("commands: rows", ""), "no filter: every test");

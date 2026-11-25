@@ -104,12 +104,14 @@ namespace BeyondChaos.PR
             PrKit.Ff6.SnesEsperBonus.Vanilla = () => BcMode ? BcSeeds.Active?.EsperBonusVanilla : null;
             PrKit.Ff6.SnesEsperBonus.Tag = "[bc]";
             Defer("esper bonuses", () => PrKit.Ff6.SnesEsperBonus.Patch(harmony));
+            Defer("esper restrictions", () => BcEspers.Patch(harmony));
             Defer("seed data", () => BcData.Patch(harmony));       // bc-seeds: Colosseum, Runic/Bushido weapons (kit SnesColiseum, SnesCommandWeapons)
             Defer("enemy ai", () => BcEnemyAi.Patch(harmony));
             Defer("commands", () => BcCommands.Patch(harmony));
             Defer("battle side", () => BcBattle.Patch(harmony));   // bc-battle: codes, item specials, junction effects
             Defer("junction", () => BcJunction.Patch(harmony));    // bc-junction: BC's junction effects (BcJunction*.cs)
             Defer("events", () => BcEvents.Patch(harmony));        // bc-events: BC's light events (SysCall "BC:...", shadowstays...)
+            Defer("guide movement", () => BcGuide.Patch(harmony)); // the guide's Msg/Select must not also move the player
             Defer("art", () => BcSprites.Patch(harmony));          // bc-sprites: the kit's ArtSwap serves the seed's sprites/
             Defer("music", () => BcMusic.Patch(harmony));          // bc-music: BC's songs in place of the game's tracks (BcMusic.cs)
             Defer("doors", () => BcEntrances.Patch(harmony));      // strangejourney: the doors both worlds share, by world (BcEntrances.cs)
@@ -159,6 +161,7 @@ namespace BeyondChaos.PR
                 PrKit.Ff6.SnesStatusTicks.Track();
                 PrKit.Ff6.SnesAutobattle.Watch();
                 BcGuide.Update();
+                BcEvents.Update();                   // bc-events: the race modes' way back to the title
                 BcBattle.Update();
                 BcJunction.Update();                 // bc-junction: per-frame junction effects
                 BcMusic.Update();

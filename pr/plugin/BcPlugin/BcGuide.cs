@@ -1,4 +1,5 @@
 using System;
+using HarmonyLib;
 using Last.Management;
 using PrKit;
 using UnityEngine;
@@ -25,6 +26,27 @@ namespace BeyondChaos.PR
         internal static int Started;
 
         static bool Wanted => Plugin.BcMode && (BcSeeds.Active?.GuideMessages ?? 0) > 0;
+
+        internal static void Patch(Harmony harmony)
+        {
+            // EventRunScript leaves the field in Player state while Msg/Select runs. The message
+            // window takes Down, but the field also walks one tile and triggers sc_e_0003 beneath it.
+            Hooks.Patch(harmony, typeof(Last.Map.FieldPlayerKeyController), "OnTouchPadCallback",
+                typeof(BcGuide), prefix: nameof(GuardMove_Prefix));
+        }
+
+        public static bool GuardMove_Prefix()
+        {
+            if (!Plugin.BcMode) return true;
+            try
+            {
+                if (step == Step.Ready && Wanted && MapScripts.MapId == OpeningMap) return false;
+                bool guideRunning = MapScripts.Current == Script && MapScripts.Busy;
+                if (guideRunning) Hooks.NoteOnce("bc-guide-movement", () => "[bc] guide: field movement blocked during the guide");
+                return !guideRunning;
+            }
+            catch (Exception e) { Hooks.WarnOnce("bc-guide-movement", e); return true; }
+        }
 
         static bool HelpOpen()
         {

@@ -356,6 +356,10 @@ class Flags(unittest.TestCase):
             vanilla = sum(1 for o in S.load(B.BANON)["Mnemonics"] if o["mnemonic"] == "GetItem" and
                           o["operands"]["iValues"][0] == B.GAUNTLET)
             self.assertEqual(sorted(gets), sorted(want * vanilla))
+            import bc_gifts
+            names = [bc_gifts.content_name(item) for item in want]
+            self.assertEqual(seed.messages("story_mes_en")["E0062_00_066_a_14"],
+                             f"<CT>Obtained {names[0]}!<P>\\n<CT>Obtained {names[1]}!")
         finally:
             seed.close()
 
@@ -411,6 +415,166 @@ class Flags(unittest.TestCase):
         finally:
             shutil.rmtree(out, ignore_errors=True)
         self.assertEqual(B.katn_espers(bc_output("base", "")), [])
+
+    def test_christmas_santa(self):
+        """christmas (BC turns it on by date): Santa for Kefka in BC's lines, name boxes and his battle name; the rest
+        of the line as the PR's; none of it on another seed."""
+        seed = Seed(f"{BASE} christmas", bc_output("base", ""))
+        try:
+            st = seed.messages("story_mes_en")
+            h = B._holiday()
+            vanilla = P.messages("story_mes", "en")
+            self.assertGreater(len(st), 60)
+            for k, v in st.items():
+                self.assertNotRegex(v, r"\bKefka\b", k)
+                self.assertEqual(v, vanilla[k].replace("Kefka", "Santa"), k)
+            cha = seed.messages("story_cha_en")
+            self.assertEqual(set(cha.values()), {"Santa"})
+            self.assertTrue(set(cha) <= set(h["santa_cha"]))
+            self.assertEqual(seed.lines().get("MSG_MON_NAME_275"), "Santa")
+            self.assertTrue(set(st) <= set(B.story_keys()) and set(cha) <= set(B.speaker_keys()))
+        finally:
+            seed.close()
+        seed = Seed(BASE, bc_output("base", ""))
+        try:
+            self.assertNotIn("christmas", seed.data)
+        finally:
+            seed.close()
+
+    def test_halloween_ghost_lines(self):
+        """halloween: the boxes BC points at the Phantom Train's ghost lines say them in the PR (no name box); with
+        notawaiter, the 5 boxes in its cut scenes are left (as BC skips them)."""
+        h = B._holiday()
+        vanilla = P.messages("story_mes", "en")
+        ghosts = {vanilla[k] for k in h["spooky_text"].values()}
+        counts = {}
+        for flags in (f"{BASE} halloween", f"{BASE} halloween notawaiter"):
+            seed = Seed(flags, bc_output("base", ""))
+            try:
+                st = seed.messages("story_mes_en")
+                spooky = {k for b in h["spooky"] for k in b["keys"]}
+                changed = {k for k in st if k in spooky}
+                self.assertTrue(changed)
+                self.assertTrue(all(st[k] in ghosts for k in changed))
+                cha = seed.messages("story_cha_en")
+                self.assertTrue(all(cha[k] == "" for k in changed if k in cha))
+                counts[flags] = len(changed)
+            finally:
+                seed.close()
+        self.assertLess(counts[f"{BASE} halloween notawaiter"], counts[f"{BASE} halloween"])
+
+    def test_namingway_on_both_airships(self):
+        """Every seed but the cave modes: the renaming NPC in both airship rooms (its script table row), asking "Rename
+        lead character?" -> the leader's own naming call; No -> nothing."""
+        import seed_live as L
+        import test_wc as W
+        seed = Seed(BASE, bc_output("base", ""))
+        try:
+            with open(os.path.join(seed.out, *L.MASTER_PATH.split("/"), "script.csv"), encoding="utf-8", newline="") as f:
+                rows = P.Table("script", f.read()).rows
+            for name, (group, folder, sub, (x, y), sid) in B.NAMERS.items():
+                self.assertEqual(rows[sid]["script_name"], name)
+                doc = seed.file(B.MAP_REL.format(group=group, folder=folder, sub=sub, file="entity_default.json"))
+                npcs = [o for _, o, pr in B._objects(doc) if pr.get("script_id") == sid]
+                self.assertEqual(len(npcs), 1, sub)
+                ids = [o["id"] for _, o, _ in B._objects(doc)]
+                self.assertEqual(len(ids), len(set(ids)), "object ids stay unique")
+                sc = seed.file(B.new_rel(name))
+                st = W.State()
+                st.party = [7, 1]
+                self.assertTrue(W.Run(sc, st, answers=[0]).did("SysCall", "名前入力：セリス"))
+                self.assertFalse(W.Run(sc, W.State(), answers=[1]).did("SysCall"))
+        finally:
+            seed.close()
+        seed = Seed(f"{BASE} ancientcave", bc_output("base", ""))
+        try:
+            self.assertNotIn("namingway", seed.data)
+        finally:
+            seed.close()
+
+    def test_alasdraco_rafters_prop(self):
+        """alasdraco: BC's object on the rafters (its opera log) replaces the 4-ton weight in the opera's three event
+        layers, when the PR has an asset for it."""
+        rom = bc_output("opera2", "alasdraco")
+        cap = capture_of("opera2")
+        item = cap["opera"].get("rafters")
+        self.assertIn(item, {"letter", "book", "rat", "mini statue", "baby", "4 ton weight", "fire"})
+        seed = Seed(f"{BASE} alasdraco", rom, capture=cap)
+        try:
+            part = seed.data["alasdraco"]["rafters"]
+            asset = B.RAFTER_ASSETS.get(item)
+            if asset and asset != 157:
+                self.assertEqual(part["asset"], asset)
+                for g, f, sub, name in B.RAFTER_LAYERS:
+                    doc = seed.file(B.MAP_REL.format(group=g, folder=f, sub=sub, file=name))
+                    assets = {pr.get("asset_id") for _, _, pr in B._objects(doc)}
+                    self.assertIn(asset, assets)
+                    self.assertNotIn(157, assets)
+            else:
+                self.assertIsNone(part)
+        finally:
+            seed.close()
+
+    def test_gau_auto_recruit(self):
+        """o/w/t (every preset): Gau stays with the party after his first scene (no run-off), the dried-meat recruit
+        marked done, and he rejoins as the Falcon rises; with r the Falcon's character is r's."""
+        import test_wc as W
+        seed = Seed(BASE, bc_output("base", ""))
+        try:
+            st = W.State()
+            r = W.Run(seed.script(B.GAU_FIRST), st)
+            self.assertTrue(r.did("SysCall", "メンバー加入：ガウ"))
+            self.assertFalse(r.did("SysCall", "メンバー離脱：ガウ"))
+            self.assertEqual(st.get(*B.GAU_RECRUITED), 1)
+            falcon = [o["operands"]["sValues"][0] for o in seed.script(B.FALCON_SCENE)["Mnemonics"] if o["mnemonic"] == "SysCall"]
+            self.assertIn("メンバー加入：ガウ", falcon)
+        finally:
+            seed.close()
+        seed = Seed("m", bc_output("base", ""))                             # no o/w/t: the PR's own Gau
+        try:
+            self.assertNotIn("gau", seed.data)
+        finally:
+            seed.close()
+
+    def test_auction_in_bcs_order(self):
+        """Every seed: the auction's sale follows BC's chain (the espers first): Zoneseek while unsold; with both
+        espers bought, Cherub Down in the World of Balance and the Hero Ring after the collapse (the model's random
+        values are 0: no 50% skip taken)."""
+        import test_wc as W
+        seed = Seed(BASE, bc_output("base", ""))
+        try:
+            sc = seed.script(B.AUCTION)
+
+            def sale(**flags):
+                st = W.State()
+                st.set("ScenarioFlag1", 203, 1)                                  # the auction's open
+                for (cat, i), v in flags.get("set", {}).items():
+                    st.set(cat, i, v)
+                r = W.Run(sc, st, answers=[1, 1, 1])
+                return [t[3][0] for t in r.trace if t[1] == "ChangeScript"] or \
+                    [t[3][0] for t in r.trace if t[1] == "Msg"][:2]
+            self.assertEqual(sale(), ["sc_e_0423"])                                       # Zoneseek
+            both = {("ScenarioFlag1", 204): 1, ("ScenarioFlag1", 205): 1}
+            self.assertEqual(sale(set=both), ["sc_e_0424"])                               # Cherub Down
+            self.assertEqual(sale(set={**both, ("ScenarioFlag2", 41): 1}), ["sc_e_0752"])  # the Hero Ring
+            golem = sale(set={("ScenarioFlag1", 205): 1})
+            self.assertEqual(golem, ["E0422_99_111_a_01"])     # Golem's own sale (in the dispatcher: no hand-off)
+        finally:
+            seed.close()
+
+    def test_seed_display_in_the_opening(self):
+        """Every seed: the opening's first field dialogue shows BC's seed text (set live: BC:seedinfo)."""
+        import test_wc as W
+        seed = Seed(BASE, bc_output("base", ""))
+        try:
+            key = seed.data["seedinfo"]["key"]
+            sc = seed.script(B.OPENING_SEED_SCENE)
+            calls = {f"BC:seedinfo {key}": lambda st: None}
+            r = W.Run(sc, W.State(), syscalls=calls)
+            self.assertTrue(r.did("SysCall", f"BC:seedinfo {key}") and r.did("Msg", key))
+            self.assertTrue(r.did("Msg", "E0001_04_003_a_01"))
+        finally:
+            seed.close()
 
     def test_race_modes_end_on_our_screen(self):
         """katn ends after Kefka at Narshe is won (not lost), dragonhunt once the 8th dragon falls (not before): the
