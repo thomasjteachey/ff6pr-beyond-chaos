@@ -16,11 +16,11 @@ added for BC's junction effects and the cave modes, more events counted; owners 
 | Area | Weight | Done | Points | Owner |
 |---|---|---|---|---|
 | Seeds in game: options screen (BC's flags, codes and modes), generator (BC's own code, ROM-free, a seed = BC's exe's), live apply, saves keep their seed (2026-11-20: all but ROM-free and the player's bundle; checked headless in game) | 15 | 73% | 10.99 | bc-seeds |
-| Randomized data through the porter: characters, commands, espers, items, shops, chests, monsters, formations, encounters, Colosseum, Slots, dances, MagiTek; left: the partly-ported data flags (b, g, i, o, t, bsiab), y, alphalores, cursepower, dancingmaduin, fightclub, and WC's plugin features BC's data needs (natural magic, esper bonuses, Coliseum, rages, steal) moved into the kit | 25 | 65% | 16.32 | bc-seeds |
+| Randomized data through the porter: characters, commands, espers, items, shops, chests, monsters, formations, encounters, Colosseum, Slots, dances, MagiTek; left: the partly-ported data flags (b, g, i, o, t, bsiab), y, alphalores, cursepower, dancingmaduin, fightclub, and WC's plugin features BC's data needs (natural magic, esper bonuses, Coliseum, rages, steal) moved into the kit | 25 | 67% | 16.82 | bc-seeds |
 | Custom commands (`w`): R-/W-/X-/9x commands, combos, R-Limit, R-Chaos, allcombos, nocombos, endless9, replaceeverything, metronome, suplexwrecks, desperation (2026-11-20: all as PR command rows, random ones on the PR's random-ability function, Random Ice seen working in a battle; repeats and combos in the plugin, their battle test pending) | 12 | 82% | 9.84 | bc-battle |
 | Item specials: procs, breaks, relic bits; MBlock; collateraldamage, electricboogaloo, nobreaks, unbreakable, masseffect, darkworld (2026-11-20: the porter carries BC's weapon effects; each "?" item's description says what changed; left: MBlock, 7 armor procs, 3 relic bits, the break codes) | 6 | 57% | 3.42 | bc-battle |
-| Names and explanations in the PR's own words (no SNES abbreviations; 2026-11-20: items, skills and commands in the PR's words, all fitting the game's boxes; a per-seed guide for newcomers, on the BC screen and in game right after the opening's controls tutorial (`BcGuide.cs`: sc_bc_guide on Map_20010 when the field help closes; the game's message window, a Yes/No question then a page a topic); built and passed in-game (bc-guide-2b, 2026-11-24); BC's new character names through the porter's new `character_names` option (port_names.port_character_names: MSG_CHAR_NAME_01..14; New Player renames all 14: Terra is "Kei"), its monster names through `monster_names`, both switched on in bc_seed.py by bc-seeds; a "Who's who" guide page ("Kei is Terra (looks like ...)"); left: the Coral key item's rename) | 4 | 45% | 1.82 | BC lead |
-| About 30 small codes that are plugin code (swdtechspeed, norng, playsitself, dearestmolulu, levelcap, mementomori, naturalstats, supernatural, informativemiss, magicnumbers, mpparty, equipanything, espercutegf, l, u, ...) (2026-11-20: the boosts (data), dancelessons, esper bonuses for `e`) | 8 | 64% | 5.12 | bc-battle |
+| Names and explanations in the PR's own words (no SNES abbreviations; 2026-11-20: items, skills and commands in the PR's words, all fitting the game's boxes; a per-seed guide for newcomers, on the BC screen and in game right after the opening's controls tutorial (`BcGuide.cs`: sc_bc_guide on Map_20010 when the field help closes; the game's message window, a Yes/No question then a page a topic); built and passed in-game (bc-guide-2b, 2026-11-24); BC's new character names through the porter's new `character_names` option (port_names.port_character_names: MSG_CHAR_NAME_01..14; New Player renames all 14: Terra is "Kei"), its monster names through `monster_names`, both switched on in bc_seed.py by bc-seeds; a "Who's who" guide page ("Kei is Terra (looks like ...)"); left: the Coral key item's rename) | 4 | 50% | 2.0 | BC lead |
+| About 30 small codes that are plugin code (swdtechspeed, norng, playsitself, dearestmolulu, levelcap, mementomori, naturalstats, supernatural, informativemiss, magicnumbers, mpparty, equipanything, espercutegf, l, u, ...) (2026-11-20: the boosts (data), dancelessons, esper bonuses for `e`) | 8 | 66% | 5.26 | bc-battle |
 | Junction effects: espffect, effectmas, effectory, effectster, treaffect, jejentojori (BC's `bcg_junction.py`, ~57 SNES assembly patches, each a battle effect, as plugin code) | 8 | 40% | 3.2 | bc-junction |
 | Light events: worringtriad, r, h, notawaiter, lessfanatical, regionofdoom, mimetime, rushforpower, airship, shadowstays, j, k (+ alasdraco's text) | 8 | 84% | 6.75 | bc-events |
 | Sprites: makeover (characters, its sprite categories, cloneparty, partyparty, quikdraw, kupokupo, bravenudeworld), remonsterate (monsters), palettes (c, p, n), s | 10 | 73% | 7.3 | BC lead (bc-sprites done; in game 11-21) |
@@ -28,9 +28,54 @@ added for BC's junction effects and the cave modes, more events counted; owners 
 | Testing and release (2026-11-20: offline tests, headless runs through the PC test runner; the player's bundle and zip by bc-seeds (2026-11-20: bundled Python, generator/bundle.json, a player install set up in 9.7 s; its in-game check bc-player-1 queued); left: PC + Deck installs, a playthrough of a seed, the release) | 4 | 50% | 2 | BC lead |
 | Other modes: ancientcave, speedcave, racecave (BC's `ancient.py`), `d` (random final dungeon, `towerrandomizer.py`, with morefanatical, which BC applies only inside `d`'s tower remap), strangejourney (entrances); scoped 2026-11-20: all three reuse vanilla room layouts (no new map art): strangejourney rewires the PR's own exits (small), `d` clones ~23 rooms into spare map ids and rewires them (medium), the cave modes do that for 300/85/50 rooms plus rest stops and new start/end scripts (largest); order strangejourney, `d`, caves (plan: the lead's notes, bc-lead.md) | 12 | 15% | 1.8 | BC lead (a bc-modes session when RAM allows) |
 | Divergent paths (thescenarionottaken: PowerPanda's scenario, BC's `tables/divergentedits.txt`: 549 writes, ~504 KB: 144 dialogue lines rewritten, NPC/event tables, ~9 KB of event code, ~303 KB of repacked map tilemaps, the World of Balance map and exits; Terra + Banon via Baren Falls and the Veldt, Sabin + Edgar via Doma and the Phantom Train, Locke + Celes straight to Narshe; needs the kit's snes_rooms/snes_maps for its layouts) | 8 | 0% | 0 | BC lead (later, its own session) |
-| **Total** (weighted: points / 130 weights) | **130** | | **77.56 = ~60%** | |
+| **Total** (weighted: points / 130 weights) | **130** | | **78.38 = ~60%** (2026-11-26: dancingmaduin tested, supernatural ported, mastered espers n/a: the PR's own star) | |
 
 ## Live progress (newest first)
+
+- 2026-11-26 (BC session from coordinator local_e699d13a; the user: "Yes, both"): **BC 0.1.1 released as a GitHub
+  pre-release** ("Beyond Chaos 0.1.1 (preview)": the race modes Kefka @ Narshe and Dragon Hunt, Santa's battle speech,
+  bc_log_pr.txt, port marks from the audit). Zip `build/dist/BeyondChaos-PR-0.1.1.zip` 44,323,613 bytes, SHA-256
+  38eeb056...320619f9, DLL 90866480 (0.1.1), kit c52bd89 (no kit change: the local kit = the
+  published one). No Nexus (drafts only; no browser). Gate `build/batches/bc-0.1.1-gate.json` on the exact zip (PC,
+  saves unchanged): the player zip as a player installs it (startup 0 failed, "Loading [Beyond Chaos (Pixel Remaster)
+  0.1.1]", New Player seed in 26.5 s, 164/164 rows, 564/564 files, 4/4 data checks) and both race modes end to end
+  (katn 0:00:43, dragonhunt 0:00:29); `bc_bundle.py --check` (the bundled Python's seed = the project's) ok. Pitfall:
+  `kit.py package bc` zips what's built: run `tools/bc_bundle.py` and rebuild the plugin after a version bump first
+  (the first 0.1.1 zip still had 0.1.0's generator, then 0.1.0's DLL version).
+
+- 2026-11-26 night (BC session from coordinator local_e699d13a; follow-up items, docs/bc-followup-2026-11-24.md's last
+  section): **katn and dragonhunt are selectable** on the seed screen (`bc_flags_export.py` PORTED_MODES, BcScreen's mode
+  text no longer says "only Normal"): `bc-race-3` passed in game (PC, saves unchanged): katn's New Game has BC's six
+  espers, Kefka at Narshe's real fight (sc_e_0259, killed) ends the race on our end screen and goes to the title;
+  dragonhunt starts in the World of Ruin, and with 7 dragons' flags set the Ice Dragon's real fight ends it. Their
+  ending is still our screen, not BC's credits (audit gap 37). **Port statuses**: the exporter's hard-coded override is
+  gone; the audit's rows were fixed (dancingmaduin tested, supernatural ported, g partial with the dance associations
+  in) and `test_flag_ports_match_audit` keeps bc_flags.json equal to the audit. **Santa's battle speech** (christmas):
+  BC's 41 battle-event boxes matched by wording to the PR's battle-scene lines (`santa_battle` in
+  data/bc_events_holiday.json: 10 lines, 31 name boxes, 7 continuation boxes; 0x58 has no PR line); BC's list is the
+  D0/D000 battle-event table, not the F3 monster messages `battle_text.PR_KEYS` maps. **Spoiler log in the PR's
+  names**: `tools/bc_spoiler.py` writes bc_log_pr.txt beside BC's bc_log.txt on every seed (326 names on seed
+  1234567890). **Mastered espers**: the PR already draws its own gold star (build/shots/bc/mastered_star.png): audit n/a.
+  Tests: test_bc + test_bc_events 73 (4 skipped), BC plugin Release build. Area figures: ~60% (78.38/130).
+
+- 2026-11-25 evening (coordinator local_78fe7a05): **bc-17 54/54** (PC, saves unchanged): auto_down and auto_potion retry their attack after a recorded miss, return_magic recasts after a miss or 12 s with nothing back (BcJunctionTests2.MissedLast, Immortal's rule); test-only change, no release.
+
+- 2026-11-25 (coordinator local_0061ea23): **BC 0.1.0 released as a GitHub pre-release** ("Beyond Chaos 0.1.0 (preview)",
+  repo 5976c45, kit 1802aaf; zip `build/dist/BeyondChaos-PR-0.1.0.zip` 44,315,979 bytes, SHA-256 2ab05414...f4b51c2, checked by
+  downloading it). No Nexus page: the user wants BC on Nexus as an unpublished draft only (2026-11-25). The gate:
+  - Story path: `tools/story_bosses.py` (kit, new) fights the 48 story fights the game's event scripts start (EncountBoss) on
+    seed 9859608359 with BC's monsters and AI: 48 started, 0 exceptions, 45 ended by the test (bckeep, killall, a second
+    endfight for reinforcements); 421 (a NoDamage boss), 453 (both enemies down, the battle kept waiting after "won battle")
+    and 472 (tiers back at full HP) are multi-phase scripted fights the test kill can't end, not checked further. Batches
+    bc-story-bosses*.json on the PC and the laptop. The kit's HarnessBattle now has `endfight` (SnesAiHost.KillAllForTest)
+    and `giveespers`; BcHarness registers it.
+  - Magicite list: `bc-magicite-shot.json` (graphics): seed 1234567890 `e dancingmaduin:1`, 27 espers given, Abilities >
+    Espers for Terra: the 21 on the first page grey (build/shots/bc/magicite_3.png); the seed's masks allow Terra only
+    content 85 and 87, both on the second page (switchright left the list; not captured white).
+  - HP/MP conversion: `bc-mvp-multihit` 4/4 (reverse_multi, reverse_full, reverse, astral) on the released build.
+  - `bc-7` player-zip smoke on the exact zip: startup 0 failed, seed in 29.9 s, 164 rows / 564 files / 4 data checks.
+  - `bc-17` on the released build: 51/54 then 53/54. auto_down failed both times because the test's own setup attack
+    missed (the holder never fell), auto_potion and return_magic once each: the setups need retries like Immortal's.
 
 - 2026-11-24 (BC MVP): the full `bc-17` in-game battle gate passed 52/52 on a junction seed with 114 active
   effects. Immortal, Reverse, Astral, MP Switch, Counter All and Return Magic now pass in the full sequence.

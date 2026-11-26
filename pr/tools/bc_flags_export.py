@@ -29,6 +29,11 @@ SECTIONS = [("core", "Core"), ("characters", "Characters"), ("battle", "Battle")
             ("aesthetic", "Aesthetic"), ("experimental", "Experimental"), ("gamebreaking", "Gamebreaking"),
             ("holiday", "Holiday")]
 HIDDEN_CATEGORIES = {"cave"}       # set by the cave modes themselves
+# the modes the seed screen lets a player pick (the others show as "not yet in this port"): a mode joins once an
+# in-game run shows its seed starts and its end triggers. katn and dragonhunt (bc_events.py katn/dragonhunt/race_end):
+# build/batches/bc-race-3 2026-11-26, New Game -> the real fight (Kefka at Narshe, the 8th dragon) -> the end screen
+# -> the title. Their end is our screen, not BC's credits (audit gap 37).
+PORTED_MODES = {"normal", "katn", "dragonhunt"}
 
 # Labels in plain words and the Pixel Remaster's vocabulary (BC's descriptions are all-caps program
 # names such as "CHANGE SWDTECH SPEED MODE"); BC's code stays beside them on the screen
@@ -212,14 +217,13 @@ def export(out=OUT):
         everything = {f.name: f for f in list(O.ALL_FLAGS) + list(O.MAKEOVER_MODIFIER_FLAGS)}
         modes = [{"name": m.name, "label": m.display_name, "help": m.description,
                   "forced": list(m.forced_flags), "prohibited": sorted(m.prohibited_flags),
-                  "ported": m.name == "normal"} for m in O.ALL_MODES]
+                  "ported": m.name in PORTED_MODES} for m in O.ALL_MODES]
         presets = {k: " ".join(v.split()) for k, v in C.SUPPORTED_PRESETS.items()}
     finally:
         os.chdir(cwd)
     flags, sections = {}, []
     by_cat = {}
-    port_of = {**PORT, **audit_ports({f.name for f in normal})}      # the audit wins where it has the flag
-    port_of.update({"dancingmaduin": "yes", "supernatural": "yes"})  # implemented after the 2026-11-21 audit
+    port_of = {**PORT, **audit_ports({f.name for f in normal})}      # the audit wins where it has the flag: keep its rows current
     for f in normal:
         if f.category in HIDDEN_CATEGORIES:
             continue

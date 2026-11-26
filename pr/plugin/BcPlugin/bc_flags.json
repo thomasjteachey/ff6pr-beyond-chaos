@@ -29,7 +29,7 @@
     "regionofdoom",
     "worringtriad"
    ],
-   "ported": false
+   "ported": true
   },
   {
    "name": "ancientcave",
@@ -131,7 +131,7 @@
     "strangejourney",
     "thescenarionottaken"
    ],
-   "ported": false
+   "ported": true
   }
  ],
  "flags": {

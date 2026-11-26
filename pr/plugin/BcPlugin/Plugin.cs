@@ -19,7 +19,7 @@ namespace BeyondChaos.PR
     public class Plugin : BasePlugin
     {
         public const string Guid = "ff6mod.beyondchaos";
-        public const string Version = "0.1.0";
+        public const string Version = "0.1.1";
         public const string ModFolder = "BeyondChaos";   // its Magicite folder and its data folder (BepInEx/BeyondChaos)
         internal static ManualLogSource L;
         internal static string Folder;

@@ -1486,7 +1486,7 @@ def speaker_keys():
     opera roles' and the World of Ruin recruit sites' lines."""
     cha = P.messages("story_cha", "en")
     h = _holiday()
-    keys = ({k for k, v in cha.items() if v in OPERA_SPEAKERS} | set(h["santa_cha"]) |
+    keys = ({k for k, v in cha.items() if v in OPERA_SPEAKERS} | set(h["santa_cha"]) | set(santa_battle_keys(h)[1]) |
             {k for b in h["spooky"] for k in b["keys"] if k in cha})
     for _, names, _ in SITES.values():
         for name in names:
@@ -1657,7 +1657,7 @@ def katn(ctx):
 # --- christmas (BC turns it on by the seed's date: randomizer.py:5532; it's in BC's effective flags)
 # BC's manage_santa: Kefka -> Santa in its first dialogue list, KEFKA -> SANTA (the SNES's speaker prefixes) in its
 # second, and Kefka's battle names. PR: the same lines (data/bc_events_holiday.json: the PR keys of BC's ids), the
-# name boxes of the second list, Kefka's monster name. Its sprites, windows and music are bc-sprites' / bc-music's.
+# name boxes of the second list, Kefka's monster name; his battle speech (santa_battle: BC's battle-event boxes, by wording). Its sprites, windows and music are bc-sprites' / bc-music's.
 HOLIDAY_DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "bc_events_holiday.json")
 
 
@@ -1666,19 +1666,31 @@ def _holiday():
         return json.load(f)
 
 
+def santa_battle_keys(h=None):
+    """christmas's battle lines (data/bc_events_holiday.json santa_battle, BC's two battle-text lists matched to the
+    PR's battle-scene lines): (story_mes keys whose words say Kefka, story_cha keys whose name box says Kefka)."""
+    b = (h or _holiday())["santa_battle"]
+    text = sorted({k for ks in b["text"].values() for k in ks})
+    cha = sorted({k for part in ("cha", "named") for ks in b[part].values() for k in ks})
+    return text, cha
+
+
 def christmas(ctx):
     h = _holiday()
     story = P.messages("story_mes", "en")
     cha = P.messages("story_cha", "en")
     system = P.messages("system", "en")
-    lines = {k: re.sub(r"\bKefka\b", "Santa", story[k]) for k in h["santa_text"] if k in story}
+    battle_text, battle_cha = santa_battle_keys(h)
+    lines = {k: re.sub(r"\bKefka\b", "Santa", story[k]) for k in h["santa_text"] + battle_text if k in story}
     ctx.story.update({k: v for k, v in lines.items() if v != story[k]})
-    ctx.speakers.update({k: "Santa" for k in h["santa_cha"] if cha.get(k) == "Kefka"})
+    speakers = {k: "Santa" for k in h["santa_cha"] + battle_cha if cha.get(k) == "Kefka"}
+    ctx.speakers.update(speakers)
     for k in h["santa_monsters"]:
         if system.get(k) == "Kefka":
             ctx.lines.append((k, "Santa"))
-    ctx.log(f"christmas: Santa in {len(lines)} lines and {len(h['santa_cha'])} name boxes")
-    return {"lines": len(lines), "speakers": len(h["santa_cha"])}
+    ctx.log(f"christmas: Santa in {len(lines)} lines and {len(speakers)} name boxes "
+            f"({len(battle_text)} and {len(battle_cha)} of them in battle)")
+    return {"lines": len(lines), "speakers": len(speakers), "battle": len(battle_text) + len(battle_cha)}
 
 
 # --- halloween (by the seed's date as christmas). BC's manage_spookiness points 13 event text boxes (5 of them only
@@ -1866,7 +1878,8 @@ def seedinfo(ctx):
 def story_keys():
     """Every story_mes_en line a seed's events may reword (the baseline keeps them as the game has them)."""
     h = _holiday()
-    return sorted(set(OPERA_LINES) | set(TEXT_KEYS) | set(h["santa_text"]) | {k for b in h["spooky"] for k in b["keys"]})
+    return sorted(set(OPERA_LINES) | set(TEXT_KEYS) | set(h["santa_text"]) | set(santa_battle_keys(h)[0]) |
+                  {k for b in h["spooky"] for k in b["keys"]})
 
 
 def alasdraco(ctx):

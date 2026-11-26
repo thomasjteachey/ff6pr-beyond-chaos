@@ -33,6 +33,15 @@ namespace BeyondChaos.PR
             BcJunctionActs.QueueTest(who, new[] { at }, ability, cmd);
         }
 
+        // The check's own strike or spell at `at` can miss (bc-17 on 0.1.0: auto_down's killing attack twice,
+        // auto_potion and return_magic once): true when the last of its `tries` test acts on `at` is a recorded miss,
+        // so the check acts again (Immortal's rule: only after a miss, never extra acts queued blind).
+        static bool MissedLast(float since, BattleUnitData at, int tries)
+        {
+            var on = Since(since).Where(l => l.Act.Test).Select(l => On(l, at)).Where(x => x != null && x.Targeted).ToList();
+            return on.Count >= tries && on.Count > 0 && on.Last().Missed;
+        }
+
         static void Ready()
         {
             BcSelfTests.Sturdy();
@@ -234,12 +243,20 @@ namespace BeyondChaos.PR
                 return missed >= 1 && counters >= 1 ? $"ok: {missed} of {on.Count} missed, {counters} counters" : $"FAILED: {missed} missed, {counters} counters";
             });
             // Return Magic: a monster's Fire at the holder comes back
-            Add("return_magic", b => { Ready(); BcJunction.Grant(P(2), "return_magic"); Cast(LivingEnemy(), P(2), Fire); }, b =>
+            int returnTries = 0;
+            Add("return_magic", b => { Ready(); BcJunction.Grant(P(2), "return_magic"); returnTries = 1; Cast(LivingEnemy(), P(2), Fire); }, b =>
             {
                 var back = Since(b, P(2)).FirstOrDefault(l => l.Act.Ability?.Id == Fire);
-                if (back == null) return Now - b < 15 ? null : $"FAILED: no Fire back (holder MP {Mp(P(2))}, alive {BcJunction.Alive(P(2))}; {Seen(b, P(2))})";
+                if (back == null)
+                {
+                    // a miss, or a Fire that landed with nothing back (bc-17 2026-11-25: landed, no return; it passed
+                    // 54/54 the day before): cast again, up to 3 times
+                    if (returnTries < 3 && (MissedLast(b, P(2), returnTries) || Now - b > 12 * returnTries))
+                    { returnTries++; Cast(LivingEnemy(), P(2), Fire); }
+                    return Now - b < 15 * returnTries ? null : $"FAILED: no Fire back ({returnTries} casts; holder MP {Mp(P(2))}, alive {BcJunction.Alive(P(2))}; {Seen(b, P(2))})";
+                }
                 return $"ok: {BcJunction.Who(P(2))} cast Fire back at {BcJunction.Who(back.Act.Targets.FirstOrDefault())}";
-            });
+            }, 70);
             // Vampire: the attacker gets back what it dealt
             Add("vampire", b => { Ready(); BcJunction.Grant(P(0), "vampire"); SetHp(P(0), 1000); Act(P(0), LivingEnemy(), AttackAbility(), AttackCmd); }, b =>
             {
@@ -423,28 +440,43 @@ namespace BeyondChaos.PR
         internal static void Register3()
         {
             // Auto-Potion: hurt, the holder drinks a Potion (one from the inventory)
-            Add("auto_potion", b => { Ready(); Stock("potion"); BcJunction.Grant(P(1), "auto_potion"); SetHp(P(1), 3000); Act(LivingEnemy(), P(1), AttackAbility(), AttackCmd); }, b =>
+            int potionTries = 0;
+            Add("auto_potion", b => { Ready(); Stock("potion"); BcJunction.Grant(P(1), "auto_potion"); SetHp(P(1), 3000); potionTries = 1; Act(LivingEnemy(), P(1), AttackAbility(), AttackCmd); }, b =>
             {
                 var drink = Since(b, P(1)).FirstOrDefault(l => l.Act.Command?.Id == BcJunctionFormulas.ItemsCommand);
-                if (drink == null) return Now - b < 15 ? null : $"FAILED: no Potion ({BcJunctionItems.Used} item reactions)";
+                if (drink == null)
+                {
+                    if (potionTries < 4 && MissedLast(b, P(1), potionTries)) { potionTries++; Act(LivingEnemy(), P(1), AttackAbility(), AttackCmd); }
+                    return Now - b < 15 * potionTries ? null : $"FAILED: no Potion ({BcJunctionItems.Used} item reactions; {potionTries} attacks)";
+                }
                 var me = On(drink, P(1));
                 return me != null && me.HpAfter > me.HpBefore ? $"ok: Potion: HP {me.HpBefore} -> {me.HpAfter}" : $"FAILED: Potion landed, HP {me?.HpBefore} -> {me?.HpAfter}";
-            });
+            }, 70);
             // Auto-Down: an ally falls, the holder uses a Phoenix Down on it
+            int downTries = 0;
             Add("auto_down", b =>
             {
                 Ready(); Stock("fenix");
                 BcJunction.Grant(P(0), "auto_down");
                 SetHp(P(2) ?? P(1), 1);
+                downTries = 1;
                 Act(LivingEnemy(), P(2) ?? P(1), AttackAbility(), AttackCmd);
             }, b =>
             {
                 var t = P(2) ?? P(1);
                 var use = Since(b, P(0)).FirstOrDefault(l => l.Act.Command?.Id == BcJunctionFormulas.ItemsCommand);
-                if (use == null) return Now - b < 15 ? null : $"FAILED: no Phoenix Down (fell: {Since(b).Any(l => On(l, t)?.Died == true)}; {Seen(b, t)})";
+                if (use == null)
+                {
+                    // the killing attack missed: strike again at 1 HP (bc-17 on 0.1.0 failed twice this way)
+                    if (downTries < 4 && BcJunction.Alive(t) && MissedLast(b, t, downTries))
+                    {
+                        downTries++; SetHp(t, 1); Act(LivingEnemy(), t, AttackAbility(), AttackCmd);
+                    }
+                    return Now - b < 15 * downTries ? null : $"FAILED: no Phoenix Down ({downTries} attacks; fell: {Since(b).Any(l => On(l, t)?.Died == true)}; {Seen(b, t)})";
+                }
                 bool up = BcJunction.Alive(t);
                 return up ? $"ok: {BcJunction.Who(t)} fell and was raised" : "FAILED: the Phoenix Down didn't raise";
-            });
+            }, 70);
             // Immortal: the holder falls to a spell and rises as a Zombie.
             int immortalAttempts = 0;
             Add("immortal", b =>

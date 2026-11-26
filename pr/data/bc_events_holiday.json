@@ -294,5 +294,155 @@
  "spooky_text": {
   "noescape": "E0185_00_356_a_01",
   "nowhere": "E0185_00_356_a_11"
+ },
+ "santa_battle": {
+  "_doc": "christmas's battle lines (BC's manage_santa writes Santa into the SNES battle-event dialogue, D0/D000's table: get_long_battle_text_pointer). text: BC's first list, the box's words say Kefka -> the PR line says Santa; cha: its second, the box's KEFKA: speaker prefix -> the PR line's name box. Keys: the SNES box (BC's index), matched to the PR's battle-scene lines by wording and order (0x58 'Earthquake......?' has no PR line). named: lines the PR gives Kefka's name box where the SNES box shows no speaker (a box continuing one of BC's, or monster message F3 21 / 75), so Kefka's name shows nowhere in these fights, as on BC's SNES.",
+  "text": {
+   "0x30": [
+    "E0115_01_350_b_02"
+   ],
+   "0x5F": [
+    "E0460_01_606_b_01"
+   ],
+   "0x64": [
+    "E0460_01_606_b_06"
+   ],
+   "0x66": [
+    "E0460_01_606_b_08"
+   ],
+   "0x86": [
+    "E0555_01_180_b_02"
+   ],
+   "0x93": [
+    "E0555_01_180_b_15"
+   ],
+   "0xCE": [
+    "E0555_05_180_b_02"
+   ],
+   "0xD9": [
+    "E0594_01_431_b_01"
+   ],
+   "0xE3": [
+    "E0594_01_431_b_11"
+   ],
+   "0xE8": [
+    "E0594_01_431_b_16"
+   ]
+  },
+  "cha": {
+   "0x1F": [
+    "E0017_02_179_b_01"
+   ],
+   "0x2F": [
+    "E0115_01_350_b_01"
+   ],
+   "0x31": [
+    "E0115_01_350_b_03"
+   ],
+   "0x57": [
+    "E0460_03_606_b_01"
+   ],
+   "0x58": [],
+   "0x5A": [
+    "E0460_03_606_b_02"
+   ],
+   "0x5C": [
+    "E0460_03_606_b_04"
+   ],
+   "0x5D": [
+    "E0460_03_606_b_05"
+   ],
+   "0x60": [
+    "E0460_01_606_b_02"
+   ],
+   "0x62": [
+    "E0460_01_606_b_04"
+   ],
+   "0x63": [
+    "E0460_01_606_b_05"
+   ],
+   "0x65": [
+    "E0460_01_606_b_07"
+   ],
+   "0x85": [
+    "E0555_01_180_b_01"
+   ],
+   "0x87": [
+    "E0555_01_180_b_03"
+   ],
+   "0x8D": [
+    "E0555_01_180_b_09"
+   ],
+   "0x91": [
+    "E0555_01_180_b_13"
+   ],
+   "0x94": [
+    "E0555_01_180_b_16"
+   ],
+   "0x95": [
+    "E0555_01_180_b_17"
+   ],
+   "0xCD": [
+    "E0555_05_180_b_01"
+   ],
+   "0xCE": [
+    "E0555_05_180_b_02"
+   ],
+   "0xCF": [
+    "E0555_05_180_b_03"
+   ],
+   "0xDA": [
+    "E0594_01_431_b_02"
+   ],
+   "0xE5": [
+    "E0594_01_431_b_13"
+   ],
+   "0xE7": [
+    "E0594_01_431_b_15"
+   ],
+   "0xE9": [
+    "E0594_01_431_b_17"
+   ],
+   "0xEA": [
+    "E0594_01_431_b_18"
+   ],
+   "0xEB": [
+    "E0594_01_431_b_19"
+   ],
+   "0xEC": [
+    "E0594_01_431_b_20"
+   ],
+   "0xED": [
+    "E0594_01_431_b_21"
+   ],
+   "0xEE": [
+    "E0594_01_431_b_22"
+   ],
+   "0xEF": [
+    "E0594_01_431_b_23"
+   ],
+   "0xF5": [
+    "E1004_00_571_b_01"
+   ]
+  },
+  "named": {
+   "0x92": [
+    "E0555_01_180_b_14"
+   ],
+   "0xF6": [
+    "E1004_00_571_b_02"
+   ],
+   "0xF7": [
+    "E1004_00_571_b_03"
+   ],
+   "F3 21": [
+    "E0256_03_019_b_01",
+    "E0256_03_019_b_02"
+   ],
+   "F3 75": [
+    "E0460_01_606_b_09",
+    "E0460_01_606_b_10"
+   ]
+  }
  }
 }

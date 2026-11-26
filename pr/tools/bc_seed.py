@@ -469,6 +469,13 @@ def main():
         import traceback
         log.write(traceback.format_exc())
         say(f"warning: the guide wasn't made: {e}")
+    # BC's spoiler log in the PR's names (tools/bc_spoiler.py, audit item 33): bc_log_pr.txt beside BC's bc_log.txt,
+    # after every step that names things (bc_items' "?" names included)
+    try:
+        import bc_spoiler
+        bc_spoiler.write(out, data, spoiler, lambda m: log.write(m + "\n"))
+    except Exception as e:  # noqa: BLE001 - BC's own log is there either way
+        log.write(f"bc spoiler: {e}\n")
     if snes_ai:
         info["snes_ai"] = snes_ai   # the plugin runs these scripts (the kit's SnesAiHost)
     info.update(tables=tables, messages=texts, files=sorted(files), unmanaged=len(unmanaged),

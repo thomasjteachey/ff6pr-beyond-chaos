@@ -73,6 +73,32 @@ class BcFlags(unittest.TestCase):
         import config
         self.assertEqual(set(self.doc["presets"]), set(config.SUPPORTED_PRESETS))
 
+    def test_ported_modes(self):
+        """The screen offers Normal and the two race modes (in game: bc-race-3, 2026-11-26); the cave modes wait."""
+        import bc_flags_export as E
+        ported = {m["name"] for m in self.doc["modes"] if m["ported"]}
+        self.assertEqual(ported, E.PORTED_MODES)
+        self.assertEqual(ported, {"normal", "katn", "dragonhunt"})
+        self.assertEqual({m["name"] for m in self.doc["modes"]} - ported, {"ancientcave", "speedcave", "racecave"})
+
+    def test_flag_ports_match_audit(self):
+        """Each flag's `port` on the screen (and in the guide and release notes) is the source audit's status
+        (docs/bc-audit.md section 1 (a)/(b): tested/ported -> yes, partial -> partly, missing -> no, n/a -> na):
+        a status changes by editing the audit's row and re-exporting (tools/bc_flags_export.py), never by an
+        override in the exporter."""
+        import bc_flags_export as E
+        if not os.path.exists(E.AUDIT):
+            self.skipTest("no docs/bc-audit.md (the public repo)")
+        audit = E.audit_ports(set(self.doc["flags"]))
+        self.assertGreaterEqual(len(audit), 110, "the audit's flag tables didn't parse")
+        self.assertEqual(sorted(set(self.doc["flags"]) - set(audit)), [], "flags the audit has no row for")
+        wrong = {k: (self.doc["flags"][k]["port"], audit[k]) for k in audit if self.doc["flags"][k]["port"] != audit[k]}
+        self.assertEqual(wrong, {}, "bc_flags.json port vs the audit's: re-run tools/bc_flags_export.py")
+        # the rows the 2026-11-21 audit had stale (an exporter override covered two of them until 2026-11-26)
+        self.assertEqual((audit["dancingmaduin"], audit["supernatural"], audit["g"]), ("yes", "yes", "partly"))
+        src = open(E.__file__, encoding="utf-8").read()
+        self.assertNotRegex(src, r"port_of\.update\(", "a hard-coded port override in bc_flags_export.py")
+
     def test_screen_strings_read_by_bcs_parser(self):
         if not os.path.exists(CASES):
             self.skipTest("run plugin/Bc.Tests first (dotnet run -c Release)")
@@ -387,6 +413,33 @@ class BcDataSteps(unittest.TestCase):
         self.assertEqual(self.D.natural_moved(self.out), [1, 7])
         self.assertEqual(self.D.natural_moved(tempfile.mkdtemp()), [])   # no learning table: nothing moved
 
+    def test_dance_backgrounds_move_learning_rows(self):
+        """g: BC's changed background -> dance table (ED/8E5B, SNES background ids) moves the PR's dance learning rows
+        (type 3: value1 = the PR background, content 494-501 = the dance) for those backgrounds only; a value past the
+        8 dances is BC's "none" and changes nothing."""
+        import prdata as P
+        t = P.Table("learning")
+        path = os.path.join(self.out, *self.L.MASTER_PATH.split("/"), "learning.csv")
+        os.makedirs(os.path.dirname(path))
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(t.to_csv(t.rows.keys()))
+        before = {r["id"]: r["content_id"] for r in t.rows.values() if r["type_id"] == "3"}
+        at = self.D.DANCE_ASSOC
+        vanilla = bytearray(at + 0x40)
+        rom = bytearray(vanilla)
+        rom[at + 28] = rom[at + 30] = 3      # SNES backgrounds 28 and 30 (PR 29, 31: Colosseum, Thamasa) -> dance 3
+        rom[at + 5] = 0xFF                   # not a dance: left as it is
+        self.assertEqual(self.D.dance_backgrounds(tempfile.mkdtemp(), bytes(rom), bytes(vanilla)), 0)   # no learning table
+        n = self.D.dance_backgrounds(self.out, bytes(rom), bytes(vanilla))
+        with open(path, encoding="utf-8", newline="") as f:
+            after = {r["id"]: r for r in P.Table("learning", f.read()).rows.values() if r["type_id"] == "3"}
+        moved = {r["value1"]: r["content_id"] for i, r in after.items() if r["content_id"] != before[i]}
+        self.assertEqual(moved, {v: "497" for v in ("29", "31") if any(
+            r["value1"] == v and before[i] != "497" for i, r in after.items())})
+        self.assertEqual(n, len(moved))
+        self.assertTrue(all(r["content_id"] == "497" for r in after.values() if r["value1"] in ("29", "31")))
+        self.assertEqual(self.D.dance_backgrounds(self.out, bytes(vanilla), bytes(vanilla)), 0)   # nothing changed
+
     def test_coral_name_title_cases_capitals(self):
         import ff6snes as S
         rom = bytearray(0x0F0000)
@@ -396,6 +449,54 @@ class BcDataSteps(unittest.TestCase):
         for i in range(7, 12):
             rom[self.D.CORAL_NAME + i] = 0xFF
         self.assertEqual(self.D.coral_name(bytes(rom)), "Crystal")
+
+
+class BcSpoiler(unittest.TestCase):
+    """tools/bc_spoiler.py (audit item 33): BC's spoiler log in the PR's names (bc_log_pr.txt)."""
+
+    def test_rename_is_one_pass_longest_first(self):
+        import bc_spoiler as B
+        pairs = {"Tonic": "Potion", "Potion": "Hi-Potion", "Bolt": "Thunder", "Bolt 2": "Thundara",
+                 "Crystal": "Crystal Sword", "Crystal Helm": "Crystal Helm", "Doom": "Death"}
+        text = "STEAL: Tonic, Potion\nSKILLS: Bolt 2, Bolt, Doom\nMORPH: Crystal, Crystal Helm\nDoom (Level 73)\nEnemy 2: Doom x1\n"
+        self.assertEqual(B.rename(text, pairs, keep={"Doom"}),
+                         "STEAL: Potion, Hi-Potion\nSKILLS: Thundara, Thunder, Death\nMORPH: Crystal Sword, Crystal Helm\n"
+                         "Doom (Level 73)\nEnemy 2: Doom x1\n")
+        self.assertEqual(B.rename("Boltage Bolt-on", pairs), "Boltage Bolt-on")      # whole names only
+
+    def test_seed_names_from_the_rom_and_seed_folder(self):
+        import prdata as P
+        import seed_live as L
+        import bc_spoiler as B
+        if not os.path.exists(P.VANILLA_ROM):
+            self.skipTest("no vanilla ROM")
+        out = tempfile.mkdtemp()
+        try:
+            master = os.path.join(out, *L.MASTER_PATH.split("/"))
+            msg = os.path.join(out, *L.MESSAGE_PATH.split("/"))
+            os.makedirs(master)
+            os.makedirs(msg)
+            t = P.Table("content")
+            with open(os.path.join(master, "content.csv"), "w", encoding="utf-8", newline="") as f:
+                f.write(t.to_csv(t.rows.keys()))
+            vmsg = P.messages("system", "en")
+            item = next(r for r in t.rows.values() if vmsg.get(r["mes_id_name"], "").endswith("Valiant Knife"))
+            with open(os.path.join(msg, "system_en.txt"), "w", encoding="utf-8", newline="") as f:
+                f.write(f"{item['mes_id_name']}\t<IC_KNIFE>Valiant Knife?\r\n")       # the seed's own name wins
+            pairs = B.name_pairs(out, P.VANILLA_ROM)
+            for snes, pr in [("ValiantKnife", "Valiant Knife?"), ("Bolt 2", "Thundara"), ("ALEXANDR", "ALEXANDER"),
+                             ("Tonic", "Potion"), ("Potion", "Hi-Potion"), ("L.? Pearl", "Lv. ? Holy"),
+                             ("Remedy", "Remedy"), ("Crystal Helm", "Crystal Helm")]:
+                self.assertEqual(pairs.get(snes), pr, snes)
+            spoiler = "SKILLS: Condemned, Doom, L.5 Doom\nDoom (Level 73)\nNotable equipment: ValiantKnife, Crystal Helm\n"
+            n = B.write(out, P.VANILLA_ROM, spoiler, log=lambda m: None)
+            self.assertGreater(n, 250)
+            with open(os.path.join(out, B.OUT_NAME), encoding="utf-8") as f:
+                text = f.read()
+            self.assertTrue(text.startswith(B.HEADER))
+            self.assertIn("SKILLS: Doom, Death, Lv. 5 Death\nDoom (Level 73)\nNotable equipment: Valiant Knife?, Crystal Helm\n", text)
+        finally:
+            shutil.rmtree(out, ignore_errors=True)
 
 
 class BcGifts(unittest.TestCase):

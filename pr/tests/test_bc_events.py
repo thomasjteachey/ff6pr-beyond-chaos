@@ -430,7 +430,17 @@ class Flags(unittest.TestCase):
                 self.assertEqual(v, vanilla[k].replace("Kefka", "Santa"), k)
             cha = seed.messages("story_cha_en")
             self.assertEqual(set(cha.values()), {"Santa"})
-            self.assertTrue(set(cha) <= set(h["santa_cha"]))
+            battle_text, battle_cha = B.santa_battle_keys(h)
+            self.assertTrue(set(cha) <= set(h["santa_cha"]) | set(battle_cha))
+            # his battle speech: every mapped line and name box says Santa (BC's battle-event boxes, by wording)
+            self.assertEqual(len(battle_text), 10)
+            self.assertEqual(len(battle_cha), 38)
+            self.assertEqual(set(battle_text) - set(st), set(), "battle lines without Santa")
+            self.assertEqual(set(battle_cha) - set(cha), set(), "battle name boxes without Santa")
+            self.assertEqual(st["E0115_01_350_b_02"], vanilla["E0115_01_350_b_02"].replace("Kefka", "Santa"))
+            # no battle-scene line of the PR's still names Kefka in its box
+            pr_cha = P.messages("story_cha", "en")
+            self.assertEqual([k for k, v in pr_cha.items() if v == "Kefka" and "_b_" in k and k not in cha], [])
             self.assertEqual(seed.lines().get("MSG_MON_NAME_275"), "Santa")
             self.assertTrue(set(st) <= set(B.story_keys()) and set(cha) <= set(B.speaker_keys()))
         finally:
@@ -440,6 +450,33 @@ class Flags(unittest.TestCase):
             self.assertNotIn("christmas", seed.data)
         finally:
             seed.close()
+
+    def test_christmas_battle_boxes_are_bcs(self):
+        """santa_battle's keys are BC's own: its first battle list (Kefka in the words) and second (the KEFKA: prefix)
+        in manage_santa (randomizer.py), 41 boxes; each has its PR line but 0x58 ("Earthquake......?", not in the PR)."""
+        import re
+        import bc_run
+        path = os.path.join(os.path.abspath(bc_run.SRC), "randomizer.py")
+        if not os.path.isfile(path):
+            self.skipTest(f"no Beyond Chaos source at {path}")
+        src = open(path, encoding="utf-8").read()
+        body = src[src.index("def manage_santa"):src.index("def manage_spookiness")]
+        lists = re.findall(r"for index, offset in \[(.*?)\]:", body, re.S)
+        self.assertEqual(len(lists), 2)
+        first, second = ({int(i, 16) for i in re.findall(r"\((0x[0-9A-Fa-f]+), *0x[0-9A-Fa-f]+\)", l)} for l in lists)
+        b = B._holiday()["santa_battle"]
+        self.assertEqual({int(i, 16) for i in b["text"]}, first)
+        self.assertEqual({int(i, 16) for i in b["cha"]}, second)
+        self.assertEqual(len(first | second), 41)
+        self.assertEqual([i for d in (b["text"], b["cha"]) for i, ks in d.items() if not ks], ["0x58"])
+        story, cha = P.messages("story_mes", "en"), P.messages("story_cha", "en")
+        for keys in b["text"].values():
+            for k in keys:
+                self.assertRegex(story[k], r"\bKefka\b", k)
+        for part in ("cha", "named"):
+            for keys in b[part].values():
+                for k in keys:
+                    self.assertEqual(cha.get(k), "Kefka", k)
 
     def test_halloween_ghost_lines(self):
         """halloween: the boxes BC points at the Phantom Train's ghost lines say them in the PR (no name box); with

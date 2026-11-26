@@ -64,22 +64,26 @@ namespace BeyondChaos.PR
             var modes = Defs.Modes;
             if (modes.Count == 0) yield break;
             var mode = CurrentMode ?? modes[0];
+            // bc_flags.json's modes say which are ported (tools/bc_flags_export.py PORTED_MODES); the others show what's coming
+            var portedLabels = string.Join(", ", modes.Where(m => m.Ported).Select(m => m.Label));
+            var later = string.Join(", ", modes.Where(m => !m.Ported).Select(m => m.Label));
             yield return new Row
             {
                 Label = "Mode",
                 Value = mode.Label + (mode.Ported ? "" : "  (not yet in this port)"),
-                Help = mode.Help + (mode.Ported ? "" : "  Not yet in the Pixel Remaster port: only Normal is."),
+                Help = mode.Help + (mode.Ported ? "" : $"  Not yet in the Pixel Remaster port (ported: {portedLabels})."),
                 Step = (d, _) =>
                 {
-                    // the ported modes only (Normal today); the others show what's coming
+                    // the ported modes only
                     var ported = modes.Where(m => m.Ported).ToList();
                     if (ported.Count == 0) return;
                     int i = ported.FindIndex(m => m.Name == modeName);
                     i = ((i < 0 ? 0 : i) + d + ported.Count) % ported.Count;
                     modeName = ported[i].Name;
                 },
-                Activate = () => Say(modes.Count(m => m.Ported) > 1 ? "Left/right: change the mode." :
-                                     $"Only Normal is in the port so far ({string.Join(", ", modes.Where(m => !m.Ported).Select(m => m.Label))} later)."),
+                Activate = () => Say(modes.Count(m => m.Ported) > 1
+                    ? "Left/right: change the mode." + (later.Length > 0 ? $" ({later}: later in this port.)" : "")
+                    : $"Only {portedLabels} is in the port so far ({later} later)."),
             };
         }
 
